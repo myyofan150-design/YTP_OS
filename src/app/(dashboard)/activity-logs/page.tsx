@@ -66,7 +66,7 @@ export default function ActivityLogsPage() {
           onChange={e => setAction(e.target.value)}
           className="w-56"
         />
-        <Select value={entityType || "_all"} onValueChange={v => setET(v === "_all" ? "" : v)}>
+        <Select value={entityType || "_all"} onValueChange={(v: string | null) => setET(v === "_all" || !v ? "" : v)}>
           <SelectTrigger className="w-44">
             <SelectValue placeholder="All types" />
           </SelectTrigger>
