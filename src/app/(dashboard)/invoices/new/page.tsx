@@ -118,7 +118,7 @@ export default function NewInvoicePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <Label>Client *</Label>
-                <Select value={clientId || "_none"} onValueChange={v => setClientId(v === "_none" ? "" : v)}>
+                <Select value={clientId || "_none"} onValueChange={(v: string | null) => setClientId(v === "_none" || !v ? "" : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a client" />
                   </SelectTrigger>

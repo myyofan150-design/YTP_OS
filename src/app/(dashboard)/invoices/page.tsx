@@ -218,7 +218,7 @@ export default function InvoicesPage() {
           onChange={e => setSearch(e.target.value)}
           className="w-64"
         />
-        <Select value={status || "_all"} onValueChange={v => setStatus(v === "_all" ? "" : v)}>
+        <Select value={status || "_all"} onValueChange={(v: string | null) => setStatus(v === "_all" || !v ? "" : v)}>
           <SelectTrigger className="w-36">
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
@@ -229,7 +229,7 @@ export default function InvoicesPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={month || "_all"} onValueChange={v => setMonth(v === "_all" ? "" : v)}>
+        <Select value={month || "_all"} onValueChange={(v: string | null) => setMonth(v === "_all" || !v ? "" : v)}>
           <SelectTrigger className="w-36">
             <SelectValue placeholder="All months" />
           </SelectTrigger>
@@ -240,7 +240,7 @@ export default function InvoicesPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={year || "_all"} onValueChange={v => setYear(v === "_all" ? "" : v)}>
+        <Select value={year || "_all"} onValueChange={(v: string | null) => setYear(v === "_all" || !v ? "" : v)}>
           <SelectTrigger className="w-28">
             <SelectValue placeholder="Year" />
           </SelectTrigger>
@@ -306,7 +306,7 @@ export default function InvoicesPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger>
                           <Button variant="ghost" size="sm">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
