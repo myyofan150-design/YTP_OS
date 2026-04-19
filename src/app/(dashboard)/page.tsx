@@ -249,7 +249,7 @@ export default function DashboardPage() {
               <BarChart data={revenue.slice(-6)} margin={{ top: 0, right: 0, bottom: 0, left: -10 }}>
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tickFormatter={v => fmtCurrency(v)} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`, "Revenue"]} />
+                <Tooltip formatter={(v) => [`₹${Number(v ?? 0).toLocaleString("en-IN")}`, "Revenue"]} />
                 <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -271,7 +271,7 @@ export default function DashboardPage() {
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  label={({ status, count }) => count > 0 ? `${status.replace("_"," ")} (${count})` : ""}
+                  label={(props: any) => Number(props.count) > 0 ? `${String(props.status).replace("_"," ")} (${props.count})` : ""}
                   labelLine={false}
                   fontSize={10}
                 >

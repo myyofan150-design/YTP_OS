@@ -188,7 +188,7 @@ function AddEntryModal({
             <div key={prop.id}>
               <Label>{prop.name}{prop.isRequired && <span className="text-red-500 ml-0.5">*</span>}</Label>
               {prop.type === "SELECT" && prop.options ? (
-                <Select value={data[String(prop.id)] ?? "_none"} onValueChange={v => setField(prop.id, v === "_none" ? "" : v)}>
+                <Select value={data[String(prop.id)] ?? "_none"} onValueChange={(v: string | null) => setField(prop.id, v === "_none" || !v ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">—</SelectItem>
