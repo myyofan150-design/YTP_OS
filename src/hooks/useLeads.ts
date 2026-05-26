@@ -25,8 +25,10 @@ export interface LeadFilters {
   statusId?:   number | null;
   priorityId?: number | null;
   sourceId?:   number | null;
+  serviceId?:  number | null;
   assignedTo?: number | null;
   converted?:  boolean | null;
+  followup?:   "today" | "overdue" | "week" | null;
   page?:       number;
   limit?:      number;
 }
@@ -60,7 +62,7 @@ export function useLeads(filters: LeadFilters = {}) {
   const [data, setData] = useState<LeadsPage>({ leads: [], total: 0, page: 1, limit: 20 });
   const [loading, setLoading] = useState(false);
 
-  const { search, statusId, priorityId, sourceId, assignedTo, converted, page, limit } = filters;
+  const { search, statusId, priorityId, sourceId, serviceId, assignedTo, converted, followup, page, limit } = filters;
 
   const refetch = useCallback(async () => {
     setLoading(true);
@@ -70,8 +72,10 @@ export function useLeads(filters: LeadFilters = {}) {
       if (statusId   != null) params["statusId"]   = String(statusId);
       if (priorityId != null) params["priorityId"] = String(priorityId);
       if (sourceId   != null) params["sourceId"]   = String(sourceId);
+      if (serviceId  != null) params["serviceId"]  = String(serviceId);
       if (assignedTo != null) params["assignedTo"] = String(assignedTo);
       if (converted  != null) params["converted"]  = converted ? "1" : "0";
+      if (followup)           params["followup"]   = followup;
       if (page)               params["page"]       = String(page);
       if (limit)              params["limit"]      = String(limit);
       const res = await api.get<ApiResponse<LeadsPage>>("/leads", { params });
@@ -82,7 +86,7 @@ export function useLeads(filters: LeadFilters = {}) {
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, statusId, priorityId, sourceId, assignedTo, converted, page, limit]);
+  }, [search, statusId, priorityId, sourceId, serviceId, assignedTo, converted, followup, page, limit]);
 
   useEffect(() => { refetch(); }, [refetch]);
 

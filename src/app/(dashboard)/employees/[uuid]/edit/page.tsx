@@ -511,7 +511,7 @@ export default function EmployeeEditPage() {
   async function saveRole() {
     setSavingRole(true);
     try {
-      await api.patch(`/users/${employee?.user.uuid ?? employee?.user.id}`, { role: roleValue });
+      await api.put(`/users/${employee?.user.id}`, { role: roleValue });
       toast.success("Role updated");
       fetchEmployee();
     } catch { toast.error("Failed to update role"); }
@@ -523,7 +523,7 @@ export default function EmployeeEditPage() {
     const isActive = employee.user.status === "ACTIVE";
     setToggling(true);
     try {
-      await api.patch(`/users/${employee.user.uuid ?? employee.user.id}/status`, {
+      await api.patch(`/users/${employee.user.id}/status`, {
         status: isActive ? "INACTIVE" : "ACTIVE",
       });
       toast.success(`Account ${isActive ? "deactivated" : "activated"}`);

@@ -5,87 +5,201 @@ import {
   DragDropContext, Droppable, Draggable, DropResult,
 } from "@hello-pangea/dnd";
 import { toast } from "sonner";
+import { AlertTriangle } from "lucide-react";
 import api from "@/lib/api";
 import { LeadCard } from "./LeadCard";
 import type { Lead, LeadMetaOption } from "@/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Column {
-  status:  LeadMetaOption;
-  leads:   Lead[];
-}
+interface Column { status: LeadMetaOption; leads: Lead[] }
 
 interface Props {
-  leads:    Lead[];
-  statuses: LeadMetaOption[];
-  onLeadClick: (lead: Lead) => void;
+  leads:         Lead[];
+  statuses:      LeadMetaOption[];
+  onLeadClick:   (lead: Lead) => void;
   onLeadsChange: (leads: Lead[]) => void;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+interface PendingMove {
+  lead:         Lead;
+  targetStatus: LeadMetaOption;
+}
+
+// ─── Status-transition helpers ────────────────────────────────────────────────
+
+const lbl = (s: LeadMetaOption | null | undefined) =>
+  (s?.label ?? "").toLowerCase().trim();
+
+function isTerminal(s: LeadMetaOption | null | undefined): boolean {
+  return lbl(s) === "won" || lbl(s) === "blacklist";
+}
+
+function isBlacklist(s: LeadMetaOption | null | undefined): boolean {
+  return lbl(s) === "blacklist";
+}
+
+function isWon(s: LeadMetaOption | null | undefined): boolean {
+  return lbl(s) === "won";
+}
+
+function isLost(s: LeadMetaOption | null | undefined): boolean {
+  return lbl(s) === "lost";
+}
+
+/** Returns true if the drag is allowed; false if it must be blocked entirely. */
+function canMove(current: LeadMetaOption | null, target: LeadMetaOption): boolean {
+  if (!current || current.id === target.id) return false;
+  if (isTerminal(current)) return false;                    // Won/Blacklist: locked
+  if (isBlacklist(target)) return true;                     // To blacklist: allowed (confirmed separately)
+  if (isLost(current))     return lbl(target) === "contacted"; // Lost → Contacted only
+  if (isLost(target))      return true;                     // Anything → Lost allowed
+  return target.sortOrder > current.sortOrder;              // Forward only
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function buildColumns(leads: Lead[], statuses: LeadMetaOption[]): Column[] {
   const cols: Column[] = statuses.map(s => ({ status: s, leads: [] }));
-  const unstatused: Lead[] = [];
-
   for (const lead of leads) {
     const col = cols.find(c => c.status.id === lead.statusId);
     if (col) col.leads.push(lead);
-    else unstatused.push(lead);
+    else if (cols.length > 0) cols[0].leads.push(lead);
   }
-
-  // Insert any unstatused leads into first column, or a fallback "No Status" column
-  if (unstatused.length > 0) {
-    if (cols.length > 0) cols[0].leads.push(...unstatused);
-  }
-
   return cols;
+}
+
+// ─── BlacklistConfirmDialog ────────────────────────────────────────────────────
+
+function BlacklistConfirmDialog({
+  lead, onConfirm, onCancel,
+}: { lead: Lead; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-card rounded-2xl border border-border shadow-2xl p-6 max-w-md w-full mx-4 space-y-4">
+        <div className="flex items-center gap-3">
+          <span className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+          </span>
+          <div>
+            <p className="text-sm font-bold text-foreground">Blacklist this lead?</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              <strong>{lead.contactPerson}</strong> will be permanently blacklisted and cannot be moved to any other status.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onCancel}
+            className="h-8 px-4 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:bg-muted/50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="h-8 px-4 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+          >
+            Yes, Blacklist
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── LeadKanbanBoard ──────────────────────────────────────────────────────────
 
 export function LeadKanbanBoard({ leads, statuses, onLeadClick, onLeadsChange }: Props) {
   const [localLeads, setLocalLeads] = useState<Lead[]>(leads);
+  const [pendingMove, setPendingMove] = useState<PendingMove | null>(null);
 
-  // Sync external leads into local state when prop changes
+  // Sync external leads
   if (leads !== localLeads && JSON.stringify(leads) !== JSON.stringify(localLeads)) {
     setLocalLeads(leads);
   }
 
   const columns = buildColumns(localLeads, statuses);
 
-  const handleDragEnd = useCallback(async (result: DropResult) => {
-    const { source, destination, draggableId } = result;
-    if (!destination) return;
-    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+  const commitMove = useCallback(async (lead: Lead, targetStatus: LeadMetaOption) => {
+    const previousStatus = lead.status;
+    const previousStatusId = lead.statusId;
 
-    const newStatusId = Number(destination.droppableId);
-    const newStatus = statuses.find(s => s.id === newStatusId);
-    if (!newStatus) return;
-
-    // Optimistic update
     const updated = localLeads.map(l =>
-      l.uuid === draggableId
-        ? { ...l, statusId: newStatusId, status: newStatus }
-        : l
+      l.uuid === lead.uuid ? { ...l, statusId: targetStatus.id, status: targetStatus } : l
     );
     setLocalLeads(updated);
     onLeadsChange(updated);
 
     try {
-      await api.patch(`/leads/${draggableId}`, { statusId: newStatusId });
+      await api.patch(`/leads/${lead.uuid}`, { statusId: targetStatus.id });
+
+      if (isBlacklist(targetStatus)) {
+        toast.success(`${lead.contactPerson} has been blacklisted`, {
+          duration: 10000,
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              try {
+                await api.patch(`/leads/${lead.uuid}`, { statusId: previousStatusId });
+                const reverted = updated.map(l =>
+                  l.uuid === lead.uuid
+                    ? { ...l, statusId: previousStatusId ?? null, status: previousStatus }
+                    : l
+                );
+                setLocalLeads(reverted);
+                onLeadsChange(reverted);
+                toast.success("Blacklist undone");
+              } catch {
+                toast.error("Undo failed — please refresh");
+              }
+            },
+          },
+        });
+      }
     } catch {
       toast.error("Failed to update status");
       setLocalLeads(leads);
       onLeadsChange(leads);
     }
-  }, [localLeads, leads, statuses, onLeadsChange]);
+  }, [localLeads, leads, onLeadsChange]);
+
+  const handleDragEnd = useCallback((result: DropResult) => {
+    const { source, destination, draggableId } = result;
+    if (!destination) return;
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+    const newStatusId  = Number(destination.droppableId);
+    const targetStatus = statuses.find(s => s.id === newStatusId);
+    if (!targetStatus) return;
+
+    const lead = localLeads.find(l => l.uuid === draggableId);
+    if (!lead) return;
+
+    // Check if move is allowed
+    if (!canMove(lead.status, targetStatus)) {
+      if (isTerminal(lead.status)) {
+        toast.error(`This lead is ${isWon(lead.status) ? "won" : "blacklisted"} and cannot be moved.`);
+      } else if (isLost(lead.status)) {
+        toast.error("Lost leads can only be moved back to Contacted.");
+      } else {
+        toast.error("Leads cannot move backwards in the pipeline.");
+      }
+      return;
+    }
+
+    // Blacklist: show confirmation dialog (card snaps back, committed after confirm)
+    if (isBlacklist(targetStatus)) {
+      setPendingMove({ lead, targetStatus });
+      return;
+    }
+
+    commitMove(lead, targetStatus);
+  }, [localLeads, statuses, commitMove]);
 
   if (statuses.length === 0) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+        <p className="text-sm text-muted-foreground">
           No statuses configured. Add statuses in Lead Meta Manager.
         </p>
       </div>
@@ -93,69 +207,103 @@ export function LeadKanbanBoard({ leads, statuses, onLeadClick, onLeadsChange }:
   }
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="flex gap-3 overflow-x-auto pb-4 min-h-[400px]">
-        {columns.map(col => (
-          <div key={col.status.id} className="flex flex-col gap-2 min-w-[240px] w-[240px] shrink-0">
-            {/* Column header */}
-            <div className="flex items-center gap-2 px-1">
-              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: col.status.color }} />
-              <span className="text-xs font-semibold flex-1 truncate" style={{ color: "var(--text-primary)" }}>
-                {col.status.label}
-              </span>
-              <span className="text-xs font-medium rounded-full px-1.5 py-0.5"
-                style={{ background: `${col.status.color}18`, color: col.status.color }}>
-                {col.leads.length}
-              </span>
-            </div>
+    <>
+      {pendingMove && (
+        <BlacklistConfirmDialog
+          lead={pendingMove.lead}
+          onConfirm={() => {
+            const { lead, targetStatus } = pendingMove;
+            setPendingMove(null);
+            commitMove(lead, targetStatus);
+          }}
+          onCancel={() => setPendingMove(null)}
+        />
+      )}
 
-            <Droppable droppableId={String(col.status.id)}>
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className="flex flex-col gap-2 rounded-xl p-2 min-h-[120px] flex-1 transition-colors"
-                  style={{
-                    background: snapshot.isDraggingOver
-                      ? `${col.status.color}0A`
-                      : "var(--bg-elevated)",
-                    border: snapshot.isDraggingOver
-                      ? `1px solid ${col.status.color}40`
-                      : "1px solid var(--border)",
-                  }}
-                >
-                  {col.leads.map((lead, index) => (
-                    <Draggable key={lead.uuid} draggableId={lead.uuid} index={index}>
-                      {(drag, dragSnap) => (
-                        <div
-                          ref={drag.innerRef}
-                          {...drag.draggableProps}
-                          {...drag.dragHandleProps}
-                          style={{
-                            ...drag.draggableProps.style,
-                            opacity: dragSnap.isDragging ? 0.85 : 1,
-                            transform: dragSnap.isDragging
-                              ? `${drag.draggableProps.style?.transform ?? ""} rotate(1.5deg)`
-                              : drag.draggableProps.style?.transform,
-                          }}
-                        >
-                          <LeadCard lead={lead} onClick={() => onLeadClick(lead)} />
-                        </div>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
-                  {col.leads.length === 0 && !snapshot.isDraggingOver && (
-                    <p className="text-center py-4 text-xs" style={{ color: "var(--text-secondary)" }}>
-                      Drop here
-                    </p>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="flex flex-col gap-3 w-full">
+          {columns.map(col => {
+            const isBlacklistCol = isBlacklist(col.status);
+            const isWonCol       = isWon(col.status);
+            return (
+              <div key={col.status.id} className="w-full">
+                {/* Row header */}
+                <div className="flex items-center gap-2 px-1 mb-2">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full shrink-0"
+                    style={{ background: col.status.color }}
+                  />
+                  <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
+                    {col.status.label}
+                  </span>
+                  <span
+                    className="text-xs font-medium rounded-full px-1.5 py-0.5"
+                    style={{ background: `${col.status.color}18`, color: col.status.color }}
+                  >
+                    {col.leads.length}
+                  </span>
+                  {(isBlacklistCol || isWonCol) && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-1"
+                      style={{
+                        background: isBlacklistCol ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)",
+                        color: isBlacklistCol ? "#EF4444" : "#22C55E",
+                      }}>
+                      {isBlacklistCol ? "Terminal — no exit" : "Locked — converted"}
+                    </span>
                   )}
                 </div>
-              )}
-            </Droppable>
-          </div>
-        ))}
-      </div>
-    </DragDropContext>
+
+                {/* Droppable horizontal row */}
+                <Droppable droppableId={String(col.status.id)} direction="horizontal">
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className="flex flex-row gap-2 rounded-xl p-2 min-h-[100px] overflow-x-auto transition-colors"
+                      style={{
+                        background: snapshot.isDraggingOver
+                          ? `${col.status.color}0A`
+                          : "var(--bg-elevated)",
+                        border: snapshot.isDraggingOver
+                          ? `1px solid ${col.status.color}40`
+                          : "1px solid var(--border)",
+                      }}
+                    >
+                      {col.leads.map((lead, index) => (
+                        <Draggable key={lead.uuid} draggableId={lead.uuid} index={index}>
+                          {(drag, dragSnap) => (
+                            <div
+                              ref={drag.innerRef}
+                              {...drag.draggableProps}
+                              {...drag.dragHandleProps}
+                              className="shrink-0 w-[220px]"
+                              style={{
+                                ...drag.draggableProps.style,
+                                opacity: dragSnap.isDragging ? 0.85 : 1,
+                                transform: dragSnap.isDragging
+                                  ? `${drag.draggableProps.style?.transform ?? ""} rotate(1.5deg)`
+                                  : drag.draggableProps.style?.transform,
+                              }}
+                            >
+                              <LeadCard lead={lead} onClick={() => onLeadClick(lead)} kanban />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                      {col.leads.length === 0 && !snapshot.isDraggingOver && (
+                        <p className="flex items-center px-4 text-xs text-muted-foreground italic">
+                          No leads
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
+            );
+          })}
+        </div>
+      </DragDropContext>
+    </>
   );
 }

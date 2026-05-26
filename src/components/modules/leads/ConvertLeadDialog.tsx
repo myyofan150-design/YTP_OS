@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,13 +19,13 @@ interface Props {
 }
 
 interface Form {
-  companyName: string;
+  companyName:   string;
   contactPerson: string;
-  email: string;
-  phone: string;
-  industry: string;
-  country: string;
-  city: string;
+  email:         string;
+  phone:         string;
+  industry:      string;
+  country:       string;
+  city:          string;
 }
 
 function empty(lead: Lead | null): Form {
@@ -40,9 +41,10 @@ function empty(lead: Lead | null): Form {
 }
 
 export function ConvertLeadDialog({ open, lead, onClose, onConverted }: Props) {
-  const [form, setForm]       = useState<Form>(empty(lead));
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState("");
+  const router = useRouter();
+  const [form, setForm]     = useState<Form>(empty(lead));
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState("");
 
   useEffect(() => { if (open) { setForm(empty(lead)); setError(""); } }, [open, lead]);
 
@@ -53,7 +55,6 @@ export function ConvertLeadDialog({ open, lead, onClose, onConverted }: Props) {
   async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!lead) return;
-    if (!form.companyName.trim())   { setError("Company name is required"); return; }
     if (!form.contactPerson.trim()) { setError("Contact person is required"); return; }
 
     setSaving(true); setError("");
@@ -61,7 +62,7 @@ export function ConvertLeadDialog({ open, lead, onClose, onConverted }: Props) {
       const res = await api.post<{ data: { clientUuid: string } }>(
         `/leads/${lead.uuid}/convert`,
         {
-          companyName:   form.companyName.trim(),
+          companyName:   form.companyName.trim()  || null,
           contactPerson: form.contactPerson.trim(),
           email:         form.email.trim()   || null,
           phone:         form.phone.trim()   || null,
@@ -71,11 +72,11 @@ export function ConvertLeadDialog({ open, lead, onClose, onConverted }: Props) {
         }
       );
       const clientUuid = res.data.data.clientUuid;
-      toast.success("Lead converted!", {
+      toast.success("Lead converted to client!", {
         description: "A new Client record has been created.",
         action: {
           label: "View Client →",
-          onClick: () => window.open(`/clients/${clientUuid}`, "_blank"),
+          onClick: () => router.push(`/clients/${clientUuid}`),
         },
         duration: 6000,
       });
@@ -104,8 +105,8 @@ export function ConvertLeadDialog({ open, lead, onClose, onConverted }: Props) {
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">Company Name <span style={{ color: "#EF4444" }}>*</span></Label>
-              <Input value={form.companyName} onChange={e => set("companyName", e.target.value)} className="h-8 text-sm" />
+              <Label className="text-xs">Company Name</Label>
+              <Input value={form.companyName} onChange={e => set("companyName", e.target.value)} className="h-8 text-sm" placeholder="Optional" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Contact Person <span style={{ color: "#EF4444" }}>*</span></Label>

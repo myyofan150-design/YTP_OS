@@ -47,16 +47,17 @@ function ClientAvatar({ client }: { client: Client }) {
     return (
       <img
         src={`${apiBase}/${client.logoUrl}`}
-        alt={client.companyName}
+        alt={client.companyName ?? ""}
         className="h-6 w-6 rounded-full object-cover border border-slate-200"
       />
     );
   }
   const colors = ["bg-indigo-500","bg-blue-500","bg-emerald-500","bg-amber-500","bg-rose-500","bg-purple-500"];
-  const color = colors[client.companyName.charCodeAt(0) % colors.length];
+  const name = client.companyName ?? client.contactPerson;
+  const color = colors[name.charCodeAt(0) % colors.length];
   return (
     <span className={`h-6 w-6 rounded-full ${color} text-white flex items-center justify-center text-[10px] font-bold shrink-0`}>
-      {initials(client.companyName)}
+      {initials(name)}
     </span>
   );
 }
@@ -71,7 +72,7 @@ function ClientSelect({
   const selected = clients.find(c => String(c.id) === selectedId);
 
   const filtered = query
-    ? clients.filter(c => c.companyName.toLowerCase().includes(query.toLowerCase()))
+    ? clients.filter(c => (c.companyName ?? c.contactPerson).toLowerCase().includes(query.toLowerCase()))
     : clients;
 
   useEffect(() => {

@@ -2,25 +2,28 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Plus, Settings, Search, LayoutGrid, List, Download,
-  RefreshCw, Filter, X,
+  Plus, Settings, Search, LayoutGrid, List, Download, Upload, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useLeadMeta, useLeads, useLeadStats } from "@/hooks/useLeads";
-import { LeadCard }               from "@/components/modules/leads/LeadCard";
-import { LeadKanbanBoard }         from "@/components/modules/leads/LeadKanbanBoard";
-import { LeadFormDialog }          from "@/components/modules/leads/LeadFormDialog";
-import { LeadDetailDialog }        from "@/components/modules/leads/LeadDetailDialog";
-import { ConvertLeadDialog }       from "@/components/modules/leads/ConvertLeadDialog";
-import { LeadMetaManagerDialog }   from "@/components/modules/leads/LeadMetaManagerDialog";
+import { LeadCard }             from "@/components/modules/leads/LeadCard";
+import { LeadKanbanBoard }      from "@/components/modules/leads/LeadKanbanBoard";
+import { LeadFormDialog }       from "@/components/modules/leads/LeadFormDialog";
+import { LeadDetailDialog }     from "@/components/modules/leads/LeadDetailDialog";
+import { ConvertLeadDialog }    from "@/components/modules/leads/ConvertLeadDialog";
+import { LeadMetaManagerDialog } from "@/components/modules/leads/LeadMetaManagerDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import type { Lead } from "@/types";
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -47,7 +50,191 @@ function StatCard({ label, value, color }: { label: string; value: number | stri
   );
 }
 
+// ─── ImportLeadDialog ─────────────────────────────────────────────────────────
+
+const CSV_TEMPLATE_HEADERS = [
+  "contactPerson", "companyName", "email", "phone", "whatsapp",
+  "status", "priority", "source", "services",
+  "budgetMin", "budgetMax", "timeline",
+  "nextFollowup", "notes",
+].join(",");
+
+const CSV_TEMPLATE_EXAMPLE = [
+  "John Smith", "Acme Corp", "john@acme.com", "+91-9876543210", "+91-9876543210",
+  "New", "High", "Website", "SEO;Social Media",
+  "50000", "100000", "2024-06-30",
+  "2024-05-15", "Follow up after demo",
+].join(",");
+
+function ImportLeadDialog({ open, onClose, onImported }: {
+  open: boolean;
+  onClose: () => void;
+  onImported: () => void;
+}) {
+  const [file, setFile]       = useState<File | null>(null);
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState("");
+  const [result, setResult]   = useState<{ imported: number; skipped: number } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) { setFile(null); setError(""); setResult(null); }
+  }, [open]);
+
+  function handleDownloadTemplate() {
+    const csv = `${CSV_TEMPLATE_HEADERS}\n${CSV_TEMPLATE_EXAMPLE}\n`;
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "leads-template.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  async function handleImport() {
+    if (!file) { setError("Please select a CSV file"); return; }
+    setSaving(true); setError(""); setResult(null);
+    try {
+      const text = await file.text();
+      const res = await api.post<{ data: { imported: number; skipped: number } }>(
+        "/leads/import/csv",
+        text,
+        { headers: { "Content-Type": "text/csv" } }
+      );
+      setResult(res.data.data);
+      toast.success(`Imported ${res.data.data.imported} lead${res.data.data.imported !== 1 ? "s" : ""}`);
+      onImported();
+    } catch (err: unknown) {
+      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Import failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload size={16} />Import Leads from CSV
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Upload a CSV file to import leads in bulk. Download the template to see the required column format.
+            Use semicolons to separate multiple services (e.g. <code className="text-xs bg-muted px-1 rounded">SEO;PPC</code>).
+          </p>
+
+          <button
+            onClick={handleDownloadTemplate}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-opacity hover:opacity-70"
+            style={{ background: "rgba(99,102,241,0.08)", color: "var(--accent)", border: "1px solid rgba(99,102,241,0.2)" }}
+          >
+            <Download size={12} />Download CSV Template
+          </button>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">CSV File</Label>
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={e => { setFile(e.target.files?.[0] ?? null); setError(""); setResult(null); }}
+            />
+            <div
+              onClick={() => inputRef.current?.click()}
+              className="flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-colors hover:bg-muted/30"
+              style={{ borderColor: "var(--border)", minHeight: "36px" }}
+            >
+              <Upload size={13} style={{ color: "var(--text-secondary)" }} />
+              <span className="text-sm truncate" style={{ color: file ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                {file ? file.name : "Choose file…"}
+              </span>
+            </div>
+          </div>
+
+          {error && (
+            <p className="text-xs rounded px-2 py-1.5" style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444" }}>
+              {error}
+            </p>
+          )}
+
+          {result && (
+            <p className="text-xs rounded px-2 py-1.5" style={{ background: "rgba(34,197,94,0.1)", color: "#22C55E" }}>
+              Imported {result.imported} lead{result.imported !== 1 ? "s" : ""}.
+              {result.skipped > 0 ? ` ${result.skipped} row${result.skipped !== 1 ? "s" : ""} skipped (missing contact person).` : ""}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={saving}>
+              {result ? "Close" : "Cancel"}
+            </Button>
+            {!result && (
+              <Button size="sm" onClick={handleImport} disabled={saving || !file}>
+                {saving ? "Importing…" : "Import"}
+              </Button>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── FilterSelect ─────────────────────────────────────────────────────────────
+// Renders label text directly in trigger to avoid shadcn SelectValue JSX rendering issues.
+
+interface FilterOption { id: number | string; label: string; color?: string }
+
+function FilterSelect({
+  label, value, options, placeholder = "All", width = "w-36",
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: FilterOption[];
+  placeholder?: string;
+  width?: string;
+  onChange: (v: string) => void;
+}) {
+  const selected = options.find(o => String(o.id) === value);
+
+  return (
+    <Select value={value} onValueChange={v => onChange(v ?? "")}>
+      <SelectTrigger className={`h-8 text-xs ${width}`}>
+        <span className="flex items-center gap-1.5 truncate min-w-0">
+          <span className="text-muted-foreground shrink-0">{label}:</span>
+          {selected?.color && (
+            <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: selected.color }} />
+          )}
+          <span className="truncate">{selected ? selected.label : placeholder}</span>
+        </span>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="">{placeholder}</SelectItem>
+        {options.map(o => (
+          <SelectItem key={String(o.id)} value={String(o.id)}>
+            <span className="flex items-center gap-1.5">
+              {o.color && <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: o.color }} />}
+              {o.label}
+            </span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 // ─── LeadsPage ────────────────────────────────────────────────────────────────
+
+const FOLLOWUP_OPTIONS: FilterOption[] = [
+  { id: "today",   label: "Today" },
+  { id: "overdue", label: "Overdue" },
+  { id: "week",    label: "This Week" },
+];
 
 export default function LeadsPage() {
   const { user: authUser } = useAuthStore();
@@ -63,6 +250,8 @@ export default function LeadsPage() {
   const [statusFilter,    setStatusFilter]    = useState("");
   const [priorityFilter,  setPriorityFilter]  = useState("");
   const [sourceFilter,    setSourceFilter]    = useState("");
+  const [serviceFilter,   setServiceFilter]   = useState("");
+  const [followupFilter,  setFollowupFilter]  = useState("");
   const [convertedFilter, setConvertedFilter] = useState("");
 
   // ── View ──
@@ -74,10 +263,12 @@ export default function LeadsPage() {
 
   const { leads, total, loading, refetch: refetchLeads } = useLeads({
     search:     debouncedSearch || undefined,
-    statusId:   statusFilter   ? Number(statusFilter)   : null,
-    priorityId: priorityFilter ? Number(priorityFilter) : null,
-    sourceId:   sourceFilter   ? Number(sourceFilter)   : null,
+    statusId:   statusFilter    ? Number(statusFilter)   : null,
+    priorityId: priorityFilter  ? Number(priorityFilter) : null,
+    sourceId:   sourceFilter    ? Number(sourceFilter)   : null,
+    serviceId:  serviceFilter   ? Number(serviceFilter)  : null,
     converted:  convertedFilter === "1" ? true : convertedFilter === "0" ? false : null,
+    followup:   (followupFilter as "today" | "overdue" | "week") || null,
     page,
     limit: LIMIT,
   });
@@ -94,11 +285,16 @@ export default function LeadsPage() {
   }
 
   function clearFilters() {
-    setSearch(""); setDebouncedSearch(""); setStatusFilter("");
-    setPriorityFilter(""); setSourceFilter(""); setConvertedFilter(""); setPage(1);
+    setSearch(""); setDebouncedSearch("");
+    setStatusFilter(""); setPriorityFilter(""); setSourceFilter("");
+    setServiceFilter(""); setFollowupFilter(""); setConvertedFilter("");
+    setPage(1);
   }
 
-  const hasFilters = !!(debouncedSearch || statusFilter || priorityFilter || sourceFilter || convertedFilter);
+  const hasFilters = !!(
+    debouncedSearch || statusFilter || priorityFilter || sourceFilter ||
+    serviceFilter || followupFilter || convertedFilter
+  );
 
   function refetchAll() { refetchLeads(); refetchStats(); }
 
@@ -110,9 +306,11 @@ export default function LeadsPage() {
       if (statusFilter)    params["statusId"]   = statusFilter;
       if (priorityFilter)  params["priorityId"] = priorityFilter;
       if (sourceFilter)    params["sourceId"]   = sourceFilter;
+      if (serviceFilter)   params["serviceId"]  = serviceFilter;
+      if (followupFilter)  params["followup"]   = followupFilter;
       if (convertedFilter) params["converted"]  = convertedFilter;
       const qs = new URLSearchParams(params).toString();
-      const url = `/api/leads/export/csv${qs ? "?" + qs : ""}`;
+      const url = `/leads/export/csv${qs ? "?" + qs : ""}`;
       const res = await api.get(url, { responseType: "blob" });
       const blob = new Blob([res.data as BlobPart], { type: "text/csv" });
       const a = document.createElement("a");
@@ -126,25 +324,18 @@ export default function LeadsPage() {
   }
 
   // ── Dialog state ──
-  const [metaOpen,       setMetaOpen]       = useState(false);
-  const [formOpen,       setFormOpen]       = useState(false);
-  const [editingUuid,    setEditingUuid]    = useState<string | null>(null);
-  const [detailUuid,     setDetailUuid]     = useState<string | null>(null);
-  const [detailOpen,     setDetailOpen]     = useState(false);
-  const [convertLead,    setConvertLead]    = useState<Lead | null>(null);
-  const [convertOpen,    setConvertOpen]    = useState(false);
+  const [metaOpen,    setMetaOpen]    = useState(false);
+  const [formOpen,    setFormOpen]    = useState(false);
+  const [importOpen,  setImportOpen]  = useState(false);
+  const [editingUuid, setEditingUuid] = useState<string | null>(null);
+  const [detailUuid,  setDetailUuid]  = useState<string | null>(null);
+  const [detailOpen,  setDetailOpen]  = useState(false);
+  const [convertLead, setConvertLead] = useState<Lead | null>(null);
+  const [convertOpen, setConvertOpen] = useState(false);
 
-  function openDetail(lead: Lead) {
-    setDetailUuid(lead.uuid); setDetailOpen(true);
-  }
-
-  function openEdit(uuid: string) {
-    setEditingUuid(uuid); setDetailOpen(false); setFormOpen(true);
-  }
-
-  function openConvert(lead: Lead) {
-    setConvertLead(lead); setDetailOpen(false); setConvertOpen(true);
-  }
+  function openDetail(lead: Lead) { setDetailUuid(lead.uuid); setDetailOpen(true); }
+  function openEdit(uuid: string) { setEditingUuid(uuid); setDetailOpen(false); setFormOpen(true); }
+  function openConvert(lead: Lead) { setConvertLead(lead); setDetailOpen(false); setConvertOpen(true); }
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -152,9 +343,9 @@ export default function LeadsPage() {
       {/* Stats row */}
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <StatCard label="Total Leads"    value={stats.total} />
-          <StatCard label="Converted"      value={stats.convertedCount} color="#22C55E" />
-          <StatCard label="Lost"           value={stats.lostCount}      color="#EF4444" />
+          <StatCard label="Total Leads"     value={stats.total} />
+          <StatCard label="Converted"       value={stats.convertedCount} color="#22C55E" />
+          <StatCard label="Lost"            value={stats.lostCount}      color="#EF4444" />
           <StatCard label="Follow-up Today" value={stats.followupToday}  color="#F59E0B" />
           <StatCard label="Meetings Today"  value={stats.meetingsToday}  color="#6366F1" />
         </div>
@@ -174,61 +365,57 @@ export default function LeadsPage() {
             />
           </div>
 
-          <Select value={statusFilter} onValueChange={v => { setStatusFilter(v ?? ""); setPage(1); }}>
-            <SelectTrigger className="h-8 text-xs w-36"><span className="text-muted-foreground mr-1 shrink-0">Status:</span><SelectValue placeholder="All" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All</SelectItem>
-              {meta.statuses.map(s => (
-                <SelectItem key={s.id} value={String(s.id)}>
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: s.color }} />{s.label}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FilterSelect
+            label="Status"
+            value={statusFilter}
+            options={meta.statuses.map(s => ({ id: s.id, label: s.label, color: s.color }))}
+            onChange={v => { setStatusFilter(v); setPage(1); }}
+          />
 
-          <Select value={priorityFilter} onValueChange={v => { setPriorityFilter(v ?? ""); setPage(1); }}>
-            <SelectTrigger className="h-8 text-xs w-36"><span className="text-muted-foreground mr-1 shrink-0">Priority:</span><SelectValue placeholder="All" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All</SelectItem>
-              {meta.priorities.map(p => (
-                <SelectItem key={p.id} value={String(p.id)}>
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: p.color }} />{p.label}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FilterSelect
+            label="Priority"
+            value={priorityFilter}
+            options={meta.priorities.map(p => ({ id: p.id, label: p.label, color: p.color }))}
+            onChange={v => { setPriorityFilter(v); setPage(1); }}
+          />
 
-          <Select value={sourceFilter} onValueChange={v => { setSourceFilter(v ?? ""); setPage(1); }}>
-            <SelectTrigger className="h-8 text-xs w-36"><span className="text-muted-foreground mr-1 shrink-0">Source:</span><SelectValue placeholder="All" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All</SelectItem>
-              {meta.sources.map(s => (
-                <SelectItem key={s.id} value={String(s.id)}>
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: s.color }} />{s.label}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FilterSelect
+            label="Source"
+            value={sourceFilter}
+            options={meta.sources.map(s => ({ id: s.id, label: s.label, color: s.color }))}
+            onChange={v => { setSourceFilter(v); setPage(1); }}
+          />
 
-          <Select value={convertedFilter} onValueChange={v => { setConvertedFilter(v ?? ""); setPage(1); }}>
-            <SelectTrigger className="h-8 text-xs w-40"><span className="text-muted-foreground mr-1 shrink-0">Converted:</span><SelectValue placeholder="All" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All</SelectItem>
-              <SelectItem value="1">Yes</SelectItem>
-              <SelectItem value="0">No</SelectItem>
-            </SelectContent>
-          </Select>
+          <FilterSelect
+            label="Service"
+            value={serviceFilter}
+            options={meta.services.map(s => ({ id: s.id, label: s.label, color: s.color }))}
+            onChange={v => { setServiceFilter(v); setPage(1); }}
+          />
+
+          <FilterSelect
+            label="Follow-up"
+            value={followupFilter}
+            options={FOLLOWUP_OPTIONS}
+            placeholder="Any"
+            width="w-36"
+            onChange={v => { setFollowupFilter(v); setPage(1); }}
+          />
+
+          <FilterSelect
+            label="Converted"
+            value={convertedFilter}
+            options={[{ id: "1", label: "Yes" }, { id: "0", label: "No" }]}
+            width="w-36"
+            onChange={v => { setConvertedFilter(v); setPage(1); }}
+          />
 
           {hasFilters && (
-            <button onClick={clearFilters}
+            <button
+              onClick={clearFilters}
               className="flex items-center gap-1 h-8 px-2 rounded-md text-xs transition-opacity hover:opacity-70"
-              style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
+              style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+            >
               <X size={12} />Clear
             </button>
           )}
@@ -237,28 +424,51 @@ export default function LeadsPage() {
         {/* Right: View toggle + actions */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex items-center rounded-lg overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-            <button onClick={() => setView("kanban")} className="flex h-8 w-8 items-center justify-center transition-colors"
-              style={view === "kanban" ? { background: "var(--accent)", color: "#000" } : { color: "var(--text-secondary)" }}>
+            <button
+              onClick={() => setView("kanban")}
+              className="flex h-8 w-8 items-center justify-center transition-colors"
+              style={view === "kanban" ? { background: "var(--accent)", color: "#000" } : { color: "var(--text-secondary)" }}
+            >
               <LayoutGrid size={14} />
             </button>
-            <button onClick={() => setView("list")} className="flex h-8 w-8 items-center justify-center transition-colors"
-              style={view === "list" ? { background: "var(--accent)", color: "#000" } : { color: "var(--text-secondary)" }}>
+            <button
+              onClick={() => setView("list")}
+              className="flex h-8 w-8 items-center justify-center transition-colors"
+              style={view === "list" ? { background: "var(--accent)", color: "#000" } : { color: "var(--text-secondary)" }}
+            >
               <List size={14} />
             </button>
           </div>
 
           {isAdmin && (
-            <button onClick={handleExport} title="Export CSV"
+            <button
+              onClick={handleExport}
+              title="Export CSV"
               className="flex h-8 w-8 items-center justify-center rounded-lg transition-opacity hover:opacity-70"
-              style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
+              style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+            >
               <Download size={14} />
             </button>
           )}
 
           {isAdmin && (
-            <button onClick={() => setMetaOpen(true)} title="Manage Lead Meta"
+            <button
+              onClick={() => setImportOpen(true)}
+              title="Import CSV"
               className="flex h-8 w-8 items-center justify-center rounded-lg transition-opacity hover:opacity-70"
-              style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
+              style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+            >
+              <Upload size={14} />
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              onClick={() => setMetaOpen(true)}
+              title="Manage Lead Meta"
+              className="flex h-8 w-8 items-center justify-center rounded-lg transition-opacity hover:opacity-70"
+              style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+            >
               <Settings size={14} />
             </button>
           )}
@@ -276,17 +486,23 @@ export default function LeadsPage() {
         </p>
         {view === "list" && total > LIMIT && (
           <div className="flex items-center gap-2">
-            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage(p => p - 1)}
               className="h-7 px-2 rounded text-xs transition-opacity disabled:opacity-40 hover:opacity-70"
-              style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+              style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+            >
               ← Prev
             </button>
             <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
               Page {page} / {Math.ceil(total / LIMIT)}
             </span>
-            <button disabled={page >= Math.ceil(total / LIMIT)} onClick={() => setPage(p => p + 1)}
+            <button
+              disabled={page >= Math.ceil(total / LIMIT)}
+              onClick={() => setPage(p => p + 1)}
               className="h-7 px-2 rounded text-xs transition-opacity disabled:opacity-40 hover:opacity-70"
-              style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+              style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+            >
               Next →
             </button>
           </div>
@@ -300,12 +516,12 @@ export default function LeadsPage() {
             {Array.from({ length: 6 }).map((_, i) => <LeadSkeleton key={i} />)}
           </div>
         ) : (
-          <div className="flex gap-3 overflow-x-auto pb-4">
+          <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="min-w-[240px] w-[240px] shrink-0 space-y-2">
+              <div key={i} className="space-y-2">
                 <Skeleton className="h-5 w-24" />
-                <div className="rounded-xl p-2 space-y-2" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>
-                  {Array.from({ length: 3 }).map((_, j) => <LeadSkeleton key={j} />)}
+                <div className="rounded-xl p-2 flex gap-2" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>
+                  {Array.from({ length: 3 }).map((_, j) => <div key={j} className="w-[220px] shrink-0"><LeadSkeleton /></div>)}
                 </div>
               </div>
             ))}
@@ -366,6 +582,12 @@ export default function LeadsPage() {
         lead={convertLead}
         onClose={() => setConvertOpen(false)}
         onConverted={refetchAll}
+      />
+
+      <ImportLeadDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={refetchAll}
       />
     </div>
   );

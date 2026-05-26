@@ -259,13 +259,13 @@ export default function ClientDetailPage() {
           <div className="mt-2 flex items-center gap-3">
             {resolveAssetUrl((client as typeof client & { logoUrl?: string | null }).logoUrl) ? (
               <img src={resolveAssetUrl((client as typeof client & { logoUrl?: string | null }).logoUrl)!}
-                alt={client.companyName} className="w-10 h-10 rounded-lg object-cover border border-border shrink-0" />
+                alt={client.companyName ?? ""} className="w-10 h-10 rounded-lg object-cover border border-border shrink-0" />
             ) : (
               <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
-                {client.companyName.slice(0, 2).toUpperCase()}
+                {(client.companyName ?? client.contactPerson).slice(0, 2).toUpperCase()}
               </div>
             )}
-            <h1 className="text-xl font-bold text-slate-800">{client.companyName}</h1>
+            <h1 className="text-xl font-bold text-slate-800">{client.companyName ?? client.contactPerson}</h1>
           </div>
           <div className="mt-1 flex items-center gap-2 flex-wrap">
             <StatusBadge status={client.status} />

@@ -17,7 +17,7 @@ export interface User {
 export interface Client {
   id: number;
   uuid: string;
-  companyName: string;
+  companyName: string | null;
   logoUrl?: string | null;
   contactPerson: string;
   email?: string | null;
@@ -51,6 +51,7 @@ export interface Client {
   assignedToName?: string | null;
   activeTasks?: number;
   daysUntilRenewal?: number | null;
+  totalPaid?: number;
 }
 
 export interface ClientContact {

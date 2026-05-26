@@ -18,11 +18,11 @@ import {
 import type { Client } from "@/types";
 
 const STATUSES = [
-  { value: "ACTIVE",   label: "Active" },
-  { value: "INACTIVE", label: "Inactive" },
-  { value: "PROSPECT", label: "Prospect" },
-  { value: "ON_HOLD",  label: "On Hold" },
-  { value: "CHURNED",  label: "Churned" },
+  { value: "ACTIVE",    label: "Active" },
+  { value: "INACTIVE",  label: "Inactive" },
+  { value: "ON_HOLD",   label: "On Hold" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "CHURNED",   label: "Churned" },
 ];
 
 const SOURCE_OPTS = ["Lead", "Manual", "Import"];
@@ -322,7 +322,7 @@ export function ClientModal({ client, open, onClose, onSaved }: Props) {
     fetchMeta();
     if (client) {
       setForm({
-        companyName:        client.companyName,
+        companyName:        client.companyName ?? "",
         contactPerson:      client.contactPerson,
         email:              client.email              ?? "",
         phone:              client.phone              ?? "",
@@ -376,7 +376,7 @@ export function ClientModal({ client, open, onClose, onSaved }: Props) {
     setLoading(true);
     try {
       const body = {
-        companyName:        form.companyName,
+        companyName:        form.companyName || null,
         contactPerson:      form.contactPerson,
         email:              form.email              || null,
         phone:              form.phone              || null,
@@ -460,8 +460,8 @@ export function ClientModal({ client, open, onClose, onSaved }: Props) {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <F label="Company Name" required>
-                  <Input value={form.companyName} onChange={e => set("companyName", e.target.value)} required className="h-9 text-sm" />
+                <F label="Company Name">
+                  <Input value={form.companyName} onChange={e => set("companyName", e.target.value)} className="h-9 text-sm" placeholder="Optional" />
                 </F>
                 <F label="Contact Person" required>
                   <Input value={form.contactPerson} onChange={e => set("contactPerson", e.target.value)} required className="h-9 text-sm" />

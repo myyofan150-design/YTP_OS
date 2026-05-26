@@ -5,17 +5,17 @@
 const STATUS_STYLES: Record<string, string> = {
   ACTIVE:    "bg-emerald-50 text-emerald-700 border border-emerald-200",
   INACTIVE:  "bg-slate-100 text-slate-600 border border-slate-200",
-  PROSPECT:  "bg-blue-50 text-blue-700 border border-blue-200",
   ON_HOLD:   "bg-amber-50 text-amber-700 border border-amber-200",
   CHURNED:   "bg-red-50 text-red-600 border border-red-200",
+  COMPLETED: "bg-blue-50 text-blue-700 border border-blue-200",
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  ACTIVE:   "Active",
-  INACTIVE: "Inactive",
-  PROSPECT: "Prospect",
-  ON_HOLD:  "On Hold",
-  CHURNED:  "Churned",
+  ACTIVE:    "Active",
+  INACTIVE:  "Inactive",
+  ON_HOLD:   "On Hold",
+  CHURNED:   "Churned",
+  COMPLETED: "Completed",
 };
 
 export function StatusBadge({ status }: { status: string }) {

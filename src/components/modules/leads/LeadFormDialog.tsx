@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -14,33 +14,34 @@ import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { ChevronDown, Check, Search, X } from "lucide-react";
 import type { ApiResponse, Lead, LeadMetaOption, User } from "@/types";
 import type { LeadMetaGroups } from "@/hooks/useLeads";
 
 // ─── Form State ───────────────────────────────────────────────────────────────
 
 interface FormState {
-  contactPerson: string;
-  companyName:   string;
-  email:         string;
-  phone:         string;
-  whatsapp:      string;
-  industry:      string;
-  country:       string;
-  city:          string;
-  website:       string;
-  sourceId:      string;
-  statusId:      string;
-  priorityId:    string;
-  assignedTo:    string;
-  budgetMin:     string;
-  budgetMax:     string;
-  timeline:      string;
-  lastContacted: string;
-  nextFollowup:  string;
-  meetingDatetime: string;
+  contactPerson:          string;
+  companyName:            string;
+  email:                  string;
+  phone:                  string;
+  whatsapp:               string;
+  industry:               string;
+  country:                string;
+  city:                   string;
+  website:                string;
+  sourceId:               string;
+  statusId:               string;
+  priorityId:             string;
+  assignedTo:             string;
+  budgetMin:              string;
+  budgetMax:              string;
+  timeline:               string;
+  lastContacted:          string;
+  nextFollowup:           string;
+  meetingDatetime:        string;
   requirementDescription: string;
-  serviceIds: number[];
+  serviceIds:             number[];
 }
 
 const EMPTY: FormState = {
@@ -51,6 +52,12 @@ const EMPTY: FormState = {
   timeline: "", lastContacted: "", nextFollowup: "", meetingDatetime: "",
   requirementDescription: "", serviceIds: [],
 };
+
+function safeSlice(d: string | null | undefined, len: number): string {
+  if (!d) return "";
+  // Handle "YYYY-MM-DD HH:MM:SS" format from DB with dateStrings:true
+  return d.replace(" ", "T").slice(0, len);
+}
 
 function leadToForm(lead: Lead): FormState {
   return {
@@ -69,12 +76,10 @@ function leadToForm(lead: Lead): FormState {
     assignedTo:     lead.assignedTo != null ? String(lead.assignedTo) : "",
     budgetMin:      lead.budgetMin  != null ? String(lead.budgetMin)  : "",
     budgetMax:      lead.budgetMax  != null ? String(lead.budgetMax)  : "",
-    timeline:       lead.timeline?.slice(0, 10)         ?? "",
-    lastContacted:  lead.lastContacted?.slice(0, 10)    ?? "",
-    nextFollowup:   lead.nextFollowup?.slice(0, 10)     ?? "",
-    meetingDatetime: lead.meetingDatetime
-      ? lead.meetingDatetime.slice(0, 16)
-      : "",
+    timeline:       safeSlice(lead.timeline, 10),
+    lastContacted:  safeSlice(lead.lastContacted, 10),
+    nextFollowup:   safeSlice(lead.nextFollowup, 10),
+    meetingDatetime: safeSlice(lead.meetingDatetime, 16),
     requirementDescription: lead.requirementDescription ?? "",
     serviceIds: lead.services.map(s => s.id),
   };
@@ -83,49 +88,135 @@ function leadToForm(lead: Lead): FormState {
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
-  open:      boolean;
-  onClose:   () => void;
-  onSaved:   () => void;
-  editUuid:  string | null;
-  meta:      LeadMetaGroups;
+  open:     boolean;
+  onClose:  () => void;
+  onSaved:  () => void;
+  editUuid: string | null;
+  meta:     LeadMetaGroups;
 }
 
-// ─── ServiceChips ─────────────────────────────────────────────────────────────
+// ─── ServiceMultiSelect ───────────────────────────────────────────────────────
 
-function ServiceChips({
-  services, selected, onChange,
+function ServiceMultiSelect({
+  services,
+  selected,
+  onChange,
 }: {
-  services: LeadMetaOption[];
-  selected: number[];
-  onChange: (ids: number[]) => void;
+  services:  LeadMetaOption[];
+  selected:  number[];
+  onChange:  (ids: number[]) => void;
 }) {
+  const [open,  setOpen]  = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false); setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, []);
+
+  const filtered = services.filter(s => s.label.toLowerCase().includes(query.toLowerCase()));
+
   function toggle(id: number) {
-    onChange(selected.includes(id) ? selected.filter(s => s !== id) : [...selected, id]);
+    onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
   }
+
+  function remove(id: number, e: React.MouseEvent) {
+    e.stopPropagation();
+    onChange(selected.filter(x => x !== id));
+  }
+
+  const selectedServices = services.filter(s => selected.includes(s.id));
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {services.map(s => {
-        const active = selected.includes(s.id);
-        return (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => toggle(s.id)}
-            className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-all"
-            style={active
-              ? { background: `${s.color}22`, color: s.color, border: `1px solid ${s.color}66` }
-              : { background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
-          >
-            {active && <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: s.color }} />}
-            {s.label}
-          </button>
-        );
-      })}
+    <div className="relative" ref={ref}>
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className={`w-full min-h-[36px] flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm text-left transition-colors ${
+          open ? "border-primary ring-2 ring-primary/20" : "border-input hover:border-muted-foreground/40"
+        } bg-background`}
+      >
+        <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+          {selectedServices.length === 0 ? (
+            <span className="text-muted-foreground text-sm">Select services…</span>
+          ) : (
+            selectedServices.map(svc => (
+              <span
+                key={svc.id}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+                style={{ background: `${svc.color}18`, color: svc.color, border: `1px solid ${svc.color}33` }}
+              >
+                {svc.label}
+                <span
+                  role="button"
+                  tabIndex={-1}
+                  onMouseDown={e => remove(svc.id, e)}
+                  className="ml-0.5 rounded-full hover:opacity-70 cursor-pointer"
+                >
+                  <X size={10} />
+                </span>
+              </span>
+            ))
+          )}
+        </div>
+        <ChevronDown size={14} className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+            <Search size={12} className="text-muted-foreground shrink-0" />
+            <input
+              autoFocus
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search services…"
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+            />
+          </div>
+          <ul className="max-h-44 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2 text-xs text-muted-foreground text-center">No services found</li>
+            ) : (
+              filtered.map(svc => {
+                const active = selected.includes(svc.id);
+                return (
+                  <li key={svc.id}>
+                    <button
+                      type="button"
+                      onClick={() => toggle(svc.id)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left ${
+                        active ? "bg-primary/8 text-primary" : "hover:bg-muted/50 text-foreground"
+                      }`}
+                    >
+                      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                        active ? "bg-primary border-primary" : "border-border"
+                      }`}>
+                        {active && <Check size={10} className="text-primary-foreground" />}
+                      </span>
+                      <span className="flex-1">{svc.label}</span>
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: svc.color }} />
+                    </button>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── LeadFormDialog ───────────────────────────────────────────────────────────
+// ─── Field wrapper ────────────────────────────────────────────────────────────
 
 function F({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
@@ -138,16 +229,18 @@ function F({ label, required, children }: { label: string; required?: boolean; c
   );
 }
 
+// ─── LeadFormDialog ───────────────────────────────────────────────────────────
+
 export function LeadFormDialog({ open, onClose, onSaved, editUuid, meta }: Props) {
   const { user: authUser } = useAuthStore();
   const isEmployee = authUser?.role === "EMPLOYEE";
 
-  const [form, setForm]         = useState<FormState>(EMPTY);
-  const [users, setUsers]       = useState<User[]>([]);
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState("");
+  const [form, setForm]             = useState<FormState>(EMPTY);
+  const [users, setUsers]           = useState<User[]>([]);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState("");
   const [loadingEdit, setLoadingEdit] = useState(false);
-  const [editorKey, setEditorKey]     = useState(0);
+  const [editorKey, setEditorKey]   = useState(0);
 
   function set<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -187,27 +280,27 @@ export function LeadFormDialog({ open, onClose, onSaved, editUuid, meta }: Props
     setSaving(true); setError("");
     try {
       const body = {
-        contactPerson:  form.contactPerson.trim(),
-        companyName:    form.companyName.trim()   || null,
-        email:          form.email.trim()          || null,
-        phone:          form.phone.trim()          || null,
-        whatsapp:       form.whatsapp.trim()       || null,
-        industry:       form.industry.trim()       || null,
-        country:        form.country.trim()        || null,
-        city:           form.city.trim()           || null,
-        website:        form.website.trim()        || null,
-        sourceId:       form.sourceId   ? Number(form.sourceId)   : null,
-        statusId:       form.statusId   ? Number(form.statusId)   : null,
-        priorityId:     form.priorityId ? Number(form.priorityId) : null,
-        assignedTo:     form.assignedTo ? Number(form.assignedTo) : null,
-        budgetMin:      form.budgetMin  ? Number(form.budgetMin)  : null,
-        budgetMax:      form.budgetMax  ? Number(form.budgetMax)  : null,
-        timeline:       form.timeline        || null,
-        lastContacted:  form.lastContacted   || null,
-        nextFollowup:   form.nextFollowup    || null,
-        meetingDatetime: form.meetingDatetime || null,
+        contactPerson:          form.contactPerson.trim(),
+        companyName:            form.companyName.trim()   || null,
+        email:                  form.email.trim()          || null,
+        phone:                  form.phone.trim()          || null,
+        whatsapp:               form.whatsapp.trim()       || null,
+        industry:               form.industry.trim()       || null,
+        country:                form.country.trim()        || null,
+        city:                   form.city.trim()           || null,
+        website:                form.website.trim()        || null,
+        sourceId:               form.sourceId   ? Number(form.sourceId)   : null,
+        statusId:               form.statusId   ? Number(form.statusId)   : null,
+        priorityId:             form.priorityId ? Number(form.priorityId) : null,
+        assignedTo:             form.assignedTo ? Number(form.assignedTo) : null,
+        budgetMin:              form.budgetMin  ? Number(form.budgetMin)  : null,
+        budgetMax:              form.budgetMax  ? Number(form.budgetMax)  : null,
+        timeline:               form.timeline        || null,
+        lastContacted:          form.lastContacted   || null,
+        nextFollowup:           form.nextFollowup    || null,
+        meetingDatetime:        form.meetingDatetime || null,
         requirementDescription: form.requirementDescription || null,
-        serviceIds:     form.serviceIds,
+        serviceIds:             form.serviceIds,
       };
       if (editUuid) {
         await api.patch(`/leads/${editUuid}`, body);
@@ -340,7 +433,7 @@ export function LeadFormDialog({ open, onClose, onSaved, editUuid, meta }: Props
 
             {/* Services */}
             <F label="Services">
-              <ServiceChips
+              <ServiceMultiSelect
                 services={meta.services}
                 selected={form.serviceIds}
                 onChange={ids => set("serviceIds", ids)}
