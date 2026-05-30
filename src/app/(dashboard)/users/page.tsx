@@ -92,25 +92,8 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between animate-fade-in">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Users</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage system user accounts</p>
-        </div>
-        {canManage && (
-          <Button
-            onClick={() => setShowAdd(true)}
-            className="h-9 text-sm bg-primary hover:bg-primary/85 text-primary-foreground gap-2"
-          >
-            <UserPlus size={14} />
-            Add User
-          </Button>
-        )}
-      </div>
-
-      {/* Search */}
-      <div className="animate-fade-in delay-100">
+      {/* Search + Actions */}
+      <div className="flex items-center gap-2 animate-fade-in delay-100">
         <div className="relative max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
           <Input
@@ -120,6 +103,15 @@ export default function UsersPage() {
             className="pl-8 h-9 text-sm"
           />
         </div>
+        {canManage && (
+          <Button
+            onClick={() => setShowAdd(true)}
+            className="ml-auto h-9 text-sm bg-primary hover:bg-primary/85 text-primary-foreground gap-2"
+          >
+            <UserPlus size={14} />
+            Add User
+          </Button>
+        )}
       </div>
 
       {/* Table */}

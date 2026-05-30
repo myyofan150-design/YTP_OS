@@ -2,6 +2,14 @@
 
 import type { Subscription } from "@/types";
 
+const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
+
+function toFullUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
+  return `${BACKEND}/${url}`;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function stripHtml(html: string | null): string {
@@ -87,6 +95,29 @@ function DaysLeftBadge({ daysLeft }: { daysLeft: number }) {
   );
 }
 
+// ─── Labeled badge ────────────────────────────────────────────────────────────
+
+const TIER_COLOR: Record<string, string> = {
+  free: "#6B7280", basic: "#3B82F6", trial: "#F59E0B", pro: "#8B5CF6", premium: "#CA8A04",
+};
+const USAGE_COLOR: Record<string, string> = {
+  internal: "#64748B", client: "#0D9488",
+};
+
+function InfoBadge({ prefix, value, color }: { prefix: string; value: string; color?: string }) {
+  const bg     = color ? `${color}14` : "rgba(100,116,139,0.1)";
+  const border = color ? `${color}28` : "rgba(100,116,139,0.18)";
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+      style={{ background: bg, border: `1px solid ${border}` }}>
+      <span style={{ color: "var(--text-secondary)", fontSize: "9px", fontWeight: 500 }}>{prefix}</span>
+      <span style={{ color: "var(--text-secondary)", fontSize: "9px" }}>·</span>
+      {color && <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: color }} />}
+      <span style={{ color: color ?? "#64748B", fontWeight: 600, fontSize: "11px" }}>{value}</span>
+    </span>
+  );
+}
+
 // ─── SubscriptionCard ─────────────────────────────────────────────────────────
 
 interface Props {
@@ -105,11 +136,11 @@ export function SubscriptionCard({ sub, onClick }: Props) {
       onClick={() => onClick(sub)}
       className="relative flex flex-col gap-3 rounded-xl p-4 cursor-pointer transition-all duration-200"
       style={{
-        background:   urgency === "expired" ? URGENCY_BG["expired"] : "var(--bg-surface)",
-        border:       "1px solid var(--border)",
-        borderLeft:   `3px solid ${URGENCY_LEFT_BORDER[urgency]}`,
-        boxShadow:    "0 1px 3px rgba(0,0,0,0.06)",
-        backgroundColor: urgency === "expired" ? "rgba(239,68,68,0.04)" : undefined,
+        background:      urgency === "expired" ? URGENCY_BG["expired"] : "#ffffff",
+        backgroundColor: urgency === "expired" ? "rgba(239,68,68,0.04)" : "#ffffff",
+        border:          "1px solid var(--border)",
+        borderLeft:      `3px solid ${URGENCY_LEFT_BORDER[urgency]}`,
+        boxShadow:       "0 1px 3px rgba(0,0,0,0.06)",
       }}
       onMouseEnter={e => {
         const el = e.currentTarget as HTMLElement;
@@ -127,7 +158,7 @@ export function SubscriptionCard({ sub, onClick }: Props) {
         <div className="flex items-center gap-2.5">
           {sub.logoUrl ? (
             <img
-              src={sub.logoUrl}
+              src={toFullUrl(sub.logoUrl)!}
               alt={sub.name}
               className="h-10 w-10 rounded-full object-cover shrink-0"
               style={{ border: "1px solid var(--border)" }}
@@ -169,25 +200,10 @@ export function SubscriptionCard({ sub, onClick }: Props) {
 
       {/* ── Badge row ── */}
       <div className="flex flex-wrap items-center gap-1.5">
-        {sub.status && (
-          <span
-            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-            style={{ background: `${sub.status.color}18`, color: sub.status.color }}
-          >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: sub.status.color }} />
-            {sub.status.label}
-          </span>
-        )}
-        <span
-          className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-          style={
-            sub.autopay
-              ? { background: "rgba(34,197,94,0.12)", color: "#22C55E" }
-              : { background: "var(--bg-elevated)",   color: "var(--text-secondary)" }
-          }
-        >
-          {sub.autopay ? "Autopay ON" : "Manual"}
-        </span>
+        {sub.status && <InfoBadge prefix="Status" value={sub.status.label} color={sub.status.color} />}
+        <InfoBadge prefix="Autopay" value={sub.autopay ? "ON" : "Manual"} color={sub.autopay ? "#22C55E" : undefined} />
+        {sub.planTier  && <InfoBadge prefix="Tier"  value={sub.planTier.charAt(0).toUpperCase() + sub.planTier.slice(1)} color={TIER_COLOR[sub.planTier]} />}
+        {sub.usageType && <InfoBadge prefix="Usage" value={sub.usageType === "internal" ? "Internal" : "Client"} color={USAGE_COLOR[sub.usageType]} />}
       </div>
 
       {/* ── Remarks excerpt ── */}

@@ -245,10 +245,6 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="animate-fade-in">
-        <h1 className="text-xl font-bold text-foreground">Reports</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Analytics and insights across modules</p>
-      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-muted/50 border border-border p-1 rounded-xl w-fit animate-fade-in delay-100">

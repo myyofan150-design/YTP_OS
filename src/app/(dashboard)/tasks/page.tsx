@@ -425,13 +425,6 @@ export default function TasksPage() {
       {/* ══════════════ PAGE HEADER ══════════════ */}
       <div className="flex items-center justify-between shrink-0 pb-5">
         <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Tasks</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {activeCount} active · {doneCount} done
-            </p>
-          </div>
-
           {/* View toggle */}
           <div className="flex items-center gap-0.5 bg-muted/40 rounded-xl p-1 border border-border/40">
             {([

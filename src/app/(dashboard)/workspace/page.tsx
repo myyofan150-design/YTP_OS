@@ -129,11 +129,7 @@ export default function WorkspacePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between animate-fade-in">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Workspace</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Notion-style custom databases for your team</p>
-        </div>
+      <div className="flex items-center justify-end animate-fade-in">
         {isAdmin && (
           <Button
             onClick={() => setShowNew(true)}

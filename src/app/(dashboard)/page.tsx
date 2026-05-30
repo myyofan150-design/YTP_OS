@@ -45,7 +45,7 @@ function getRoleBadgeVariant(role: string): "default" | "secondary" | "outline" 
   return "outline";
 }
 
-const PIE_COLORS = ["#007359", "#03ff94", "#f59e0b", "#22c55e"];
+const PIE_COLORS = ["#1A2035", "#00C4A7", "#f59e0b", "#22c55e"];
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
@@ -189,14 +189,14 @@ export default function DashboardPage() {
         {/* Welcome banner */}
         <div
           className="animate-fade-up relative overflow-hidden rounded-2xl px-6 py-6"
-          style={{ background: "linear-gradient(135deg, #071A0F 0%, #007359 60%, #0A2015 100%)" }}
+          style={{ background: "linear-gradient(135deg, #0B1437 0%, #1A2035 60%, #0D1B2A 100%)" }}
         >
-          <div className="pointer-events-none absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl opacity-20" style={{ background: "#03ff94" }} />
+          <div className="pointer-events-none absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl opacity-20" style={{ background: "#00C4A7" }} />
           <div className="pointer-events-none absolute inset-0 opacity-[0.07]"
             style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,.5) 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
           <div className="relative z-10 flex items-center justify-between">
             <div>
-              <p className="text-emerald-300 text-sm">Welcome back,</p>
+              <p className="text-teal-300 text-sm">Welcome back,</p>
               <h2 className="text-2xl font-bold text-white mt-0.5">{user.name}</h2>
             </div>
             <Badge variant={getRoleBadgeVariant(user.role)} className="bg-white/15 border-white/25 text-white text-xs backdrop-blur-sm">
@@ -214,18 +214,18 @@ export default function DashboardPage() {
       {/* Welcome banner */}
       <div
         className="animate-fade-up relative overflow-hidden rounded-2xl px-6 py-6"
-        style={{ background: "linear-gradient(135deg, #071A0F 0%, #007359 55%, #0A2015 100%)" }}
+        style={{ background: "linear-gradient(135deg, #0B1437 0%, #1A2035 55%, #0D1B2A 100%)" }}
       >
-        <div className="pointer-events-none absolute top-0 right-0 w-56 h-56 rounded-full blur-3xl opacity-20" style={{ background: "#03ff94" }} />
-        <div className="pointer-events-none absolute -bottom-8 -left-8 w-40 h-40 rounded-full blur-3xl opacity-15" style={{ background: "#007359" }} />
+        <div className="pointer-events-none absolute top-0 right-0 w-56 h-56 rounded-full blur-3xl opacity-20" style={{ background: "#00C4A7" }} />
+        <div className="pointer-events-none absolute -bottom-8 -left-8 w-40 h-40 rounded-full blur-3xl opacity-15" style={{ background: "#1A2035" }} />
         <div className="pointer-events-none absolute inset-0 opacity-[0.07]"
           style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,.5) 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
 
         <div className="relative z-10 flex items-center justify-between">
           <div>
-            <p className="text-emerald-300 text-sm">Welcome back,</p>
+            <p className="text-teal-300 text-sm">Welcome back,</p>
             <h2 className="text-2xl font-bold text-white mt-0.5">{user.name}</h2>
-            <p className="text-emerald-300/60 text-xs mt-1">
+            <p className="text-teal-400/60 text-xs mt-1">
               {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </p>
           </div>
@@ -276,9 +276,9 @@ export default function DashboardPage() {
             label="Monthly Revenue"
             value={fmtCurrency(stats.invoices.thisMonthTotal)}
             sub="this month"
-            icon={<TrendingUp className="h-4 w-4" style={{ color: "#007359" }} />}
-            accentColor="#007359"
-            iconBg="rgba(0,115,89,.12)"
+            icon={<TrendingUp className="h-4 w-4" style={{ color: "#007A6E" }} />}
+            accentColor="#007A6E"
+            iconBg="rgba(0,122,110,.12)"
           />
           <StatCard
             index={4}
@@ -322,7 +322,7 @@ export default function DashboardPage() {
                     fontSize: 12,
                   }}
                 />
-                <Bar dataKey="amount" fill="#007359" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="amount" fill="#00C4A7" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>

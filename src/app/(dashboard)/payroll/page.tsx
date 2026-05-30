@@ -182,28 +182,8 @@ export default function PayrollPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between animate-fade-in">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Payroll</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage monthly employee payroll</p>
-        </div>
-        {isHR && (
-          <Button
-            onClick={generateBatch}
-            disabled={generating}
-            className="h-9 text-sm bg-primary hover:bg-primary/85 text-primary-foreground"
-          >
-            {generating
-              ? <><span className="h-4 w-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin mr-2" />Generating...</>
-              : <><RefreshCw className="h-4 w-4 mr-2" />Generate All</>
-            }
-          </Button>
-        )}
-      </div>
-
       {/* Filters */}
-      <div className="flex gap-3 animate-fade-in delay-100">
+      <div className="flex items-center gap-3 animate-fade-in delay-100">
         <Select value={month} onValueChange={v => setMonth(v ?? month)}>
           <SelectTrigger className="h-9 w-44 text-sm"><span className="text-muted-foreground mr-1 shrink-0">Month:</span><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -220,6 +200,18 @@ export default function PayrollPage() {
             ))}
           </SelectContent>
         </Select>
+        {isHR && (
+          <Button
+            onClick={generateBatch}
+            disabled={generating}
+            className="ml-auto h-9 text-sm bg-primary hover:bg-primary/85 text-primary-foreground"
+          >
+            {generating
+              ? <><span className="h-4 w-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin mr-2" />Generating...</>
+              : <><RefreshCw className="h-4 w-4 mr-2" />Generate All</>
+            }
+          </Button>
+        )}
       </div>
 
       {/* Table */}

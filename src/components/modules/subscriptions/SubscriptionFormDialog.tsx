@@ -15,6 +15,15 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import type { ApiResponse, MetaOption, Subscription } from "@/types";
+import { DropZone } from "@/components/ui/drop-zone";
+
+const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
+
+function toFullUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
+  return `${BACKEND}/${url}`;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +41,8 @@ interface FormState {
   price: string;
   currency: string;
   autopay: boolean;
+  planTier: string;
+  usageType: string;
   remarks: string;
 }
 
@@ -39,7 +50,8 @@ const EMPTY: FormState = {
   name: "", logoUrl: "", link: "", username: "", password: "",
   startDate: "", endDate: "",
   categoryId: "", billingCycleId: "", statusId: "",
-  price: "", currency: "INR", autopay: false, remarks: "",
+  price: "", currency: "INR", autopay: false,
+  planTier: "", usageType: "", remarks: "",
 };
 
 interface Props {
@@ -83,6 +95,8 @@ export function SubscriptionFormDialog({
   const [error, setError]       = useState("");
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [editorKey, setEditorKey]     = useState(0);
+  const [logoFile, setLogoFile]       = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const set = (field: keyof FormState, value: string | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }));
@@ -107,6 +121,8 @@ export function SubscriptionFormDialog({
         price:         s.price != null ? String(s.price) : "",
         currency:      s.currency ?? "INR",
         autopay:       s.autopay,
+        planTier:      s.planTier  ?? "",
+        usageType:     s.usageType ?? "",
         remarks:       s.remarks ?? "",
       });
       setEditorKey(k => k + 1);
@@ -121,6 +137,8 @@ export function SubscriptionFormDialog({
     if (!open) return;
     setError("");
     setShowPw(false);
+    setLogoFile(null);
+    setLogoPreview(null);
     if (editUuid) {
       loadEdit(editUuid);
     } else {
@@ -158,21 +176,34 @@ export function SubscriptionFormDialog({
         price:         form.price         ? Number(form.price)         : null,
         currency:      form.currency,
         autopay:       form.autopay,
+        planTier:      form.planTier  || null,
+        usageType:     form.usageType || null,
         remarks:       form.remarks       || null,
       };
+      let uuid = editUuid;
       if (editUuid) {
         await api.patch(`/subscriptions/${editUuid}`, body);
-        toast.success("Subscription updated");
       } else {
-        await api.post("/subscriptions", body);
-        toast.success("Subscription created");
+        const res = await api.post<{ data: { uuid: string } }>("/subscriptions", body);
+        uuid = res.data?.data?.uuid ?? null;
       }
+      if (logoFile && uuid) {
+        try {
+          const fd = new FormData();
+          fd.append("logo", logoFile);
+          await api.post(`/subscriptions/${uuid}/logo`, fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+        } catch (_e) {
+          // logo upload failed — subscription still saved successfully
+        }
+      }
+      toast.success(editUuid ? "Subscription updated" : "Subscription created");
       onSaved();
       onClose();
     } catch (err: unknown) {
-      setError(
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to save"
-      );
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg ?? "Failed to save");
     } finally {
       setSaving(false);
     }
@@ -201,14 +232,20 @@ export function SubscriptionFormDialog({
                 <Input value={form.name} onChange={e => set("name", e.target.value)} required className="h-8 text-sm" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Logo URL</Label>
-                <div className="flex items-center gap-2">
-                  <Input value={form.logoUrl} onChange={e => set("logoUrl", e.target.value)} className="h-8 text-sm" placeholder="https://…" />
-                  {form.logoUrl && (
-                    <img src={form.logoUrl} alt="" className="h-8 w-8 rounded-full object-cover shrink-0 border border-border"
-                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                  )}
-                </div>
+                <Label className="text-xs font-medium">Logo</Label>
+                <DropZone
+                  accept="image/*"
+                  imagePreview
+                  previewUrl={logoPreview ?? toFullUrl(form.logoUrl)}
+                  onClear={() => { setLogoFile(null); setLogoPreview(null); set("logoUrl", ""); }}
+                  label="Upload logo"
+                  hint="PNG, JPG, SVG · max 5 MB"
+                  className="h-[72px]"
+                  onFile={file => {
+                    setLogoFile(file);
+                    setLogoPreview(URL.createObjectURL(file));
+                  }}
+                />
               </div>
             </div>
 
@@ -344,6 +381,35 @@ export function SubscriptionFormDialog({
                     {form.autopay ? "Enabled" : "Disabled"}
                   </span>
                 </div>
+              </div>
+            </div>
+
+            {/* Row 7: Plan Tier + Usage Type */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Plan Tier</Label>
+                <Select value={form.planTier} onValueChange={v => set("planTier", v ?? "")}>
+                  <SelectTrigger className="h-8 text-sm w-full"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value=""><span style={{ color: "var(--text-secondary)" }}>None</span></SelectItem>
+                    <SelectItem value="free">Free</SelectItem>
+                    <SelectItem value="basic">Basic</SelectItem>
+                    <SelectItem value="trial">Trial</SelectItem>
+                    <SelectItem value="pro">Pro</SelectItem>
+                    <SelectItem value="premium">Premium</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Usage Type</Label>
+                <Select value={form.usageType} onValueChange={v => set("usageType", v ?? "")}>
+                  <SelectTrigger className="h-8 text-sm w-full"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value=""><span style={{ color: "var(--text-secondary)" }}>None</span></SelectItem>
+                    <SelectItem value="internal">Internal (Company Use)</SelectItem>
+                    <SelectItem value="client">Client Use</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

@@ -1,6 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
+
+const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
+function toFullUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
+  return `${BACKEND}/${url}`;
+}
 import {
   PieChart, Pie, Cell, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer,
@@ -197,7 +204,7 @@ export function SubscriptionAnalytics({ subs }: Props) {
                 </span>
                 {sub.logoUrl ? (
                   <img
-                    src={sub.logoUrl}
+                    src={toFullUrl(sub.logoUrl)!}
                     alt={sub.name}
                     className="h-8 w-8 rounded-full object-cover shrink-0"
                     style={{ border: "1px solid var(--border)" }}

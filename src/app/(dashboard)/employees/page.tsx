@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Download, Printer, ChevronDown, ChevronUp, X, AlertTriangle,
-  FileWarning, Calendar, MessageCircle, Mail, Eye, Pencil,
+  FileWarning, Calendar, MessageCircle, Mail, Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -376,29 +376,6 @@ function EmployeesContent() {
         />
       )}
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-3 print:hidden">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Employees</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Manage your team members</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"
-            onClick={() => exportCsv(employees)}>
-            <Download className="w-3 h-3" /> Export CSV
-          </Button>
-          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"
-            onClick={() => window.print()}>
-            <Printer className="w-3 h-3" /> Print
-          </Button>
-          {canCreate && (
-            <Button size="sm" className="h-8 text-xs" onClick={() => setAddOpen(true)}>
-              + Add Employee
-            </Button>
-          )}
-        </div>
-      </div>
-
       {/* ── Stats row ────────────────────────────────────────────────────────── */}
       {stats && (
         <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 print:hidden">
@@ -468,17 +445,32 @@ function EmployeesContent() {
             <X className="w-3 h-3" /> Clear All
           </Button>
         )}
-        <span className="ml-auto text-xs text-muted-foreground">{loading ? "…" : `${employees.length} employee${employees.length !== 1 ? "s" : ""}`}</span>
+        <span className="text-xs text-muted-foreground">{loading ? "…" : `${employees.length} employee${employees.length !== 1 ? "s" : ""}`}</span>
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"
+            onClick={() => exportCsv(employees)}>
+            <Download className="w-3 h-3" /> Export CSV
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"
+            onClick={() => window.print()}>
+            <Printer className="w-3 h-3" /> Print
+          </Button>
+          {canCreate && (
+            <Button size="sm" className="h-8 text-xs" onClick={() => setAddOpen(true)}>
+              + Add Employee
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* ── Table ────────────────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 {["Employee", "Code", "Designation / Dept.", "Type", "Work Mode", "Status", "Actions"].map(h => (
-                  <th key={h} className="px-3 py-2.5 text-left font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -491,33 +483,38 @@ function EmployeesContent() {
                 employees.map(emp => {
                   const e = emp as Employee & { employeeType?: string | null; workMode?: string | null };
                   return (
-                    <tr key={emp.uuid} className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors">
-                      <td className="px-3 py-3">
+                    <tr key={emp.uuid} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
-                          <Avatar name={emp.user.name} url={emp.user.avatarUrl} />
+                          <Link href={`/employees/${emp.uuid}`} className="shrink-0">
+                            <Avatar name={emp.user.name} url={emp.user.avatarUrl} />
+                          </Link>
                           <div className="min-w-0">
-                            <p className="font-medium text-foreground truncate max-w-[140px]">{emp.user.name}</p>
+                            <Link href={`/employees/${emp.uuid}`}
+                              className="font-semibold text-foreground hover:text-primary transition-colors truncate max-w-[140px] block">
+                              {emp.user.name}
+                            </Link>
                             {emp.personalEmail ? (
                               <a href={`mailto:${emp.personalEmail}`}
-                                className="text-[10px] text-muted-foreground hover:text-primary hover:underline truncate max-w-[140px] block transition-colors"
+                                className="text-[11px] text-muted-foreground hover:text-primary hover:underline truncate max-w-[140px] block transition-colors"
                               >{emp.personalEmail}</a>
                             ) : (
-                              <p className="text-[10px] text-muted-foreground truncate max-w-[140px]">—</p>
+                              <p className="text-[11px] text-muted-foreground truncate max-w-[140px]">—</p>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-3 py-3">
-                        <span className="font-mono text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">{emp.employeeCode}</span>
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-[11px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">{emp.employeeCode}</span>
                       </td>
-                      <td className="px-3 py-3">
+                      <td className="px-4 py-3">
                         <p className="text-foreground truncate max-w-[130px]">{emp.designation ?? "—"}</p>
-                        <p className="text-[10px] text-muted-foreground truncate max-w-[130px]">{emp.department ?? ""}</p>
+                        <p className="text-[11px] text-muted-foreground truncate max-w-[130px]">{emp.department ?? ""}</p>
                       </td>
-                      <td className="px-3 py-3"><TypeBadge type={e.employeeType} /></td>
-                      <td className="px-3 py-3"><WorkModeBadge mode={e.workMode} /></td>
-                      <td className="px-3 py-3"><EmpStatusBadge status={emp.status} /></td>
-                      <td className="px-3 py-3">
+                      <td className="px-4 py-3"><TypeBadge type={e.employeeType} /></td>
+                      <td className="px-4 py-3"><WorkModeBadge mode={e.workMode} /></td>
+                      <td className="px-4 py-3"><EmpStatusBadge status={emp.status} /></td>
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-1 justify-start">
                           {emp.whatsappNumber && (
                             <a
@@ -534,11 +531,6 @@ function EmployeesContent() {
                             className="w-7 h-7 flex items-center justify-center rounded-lg text-blue-600 hover:bg-blue-50 transition-colors">
                             <Mail className="w-3.5 h-3.5" />
                           </a>
-                          <Link href={`/employees/${emp.uuid}`}
-                            title="View"
-                            className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
-                            <Eye className="w-3.5 h-3.5" />
-                          </Link>
                           {isAdmin && (
                             <button type="button"
                               title="Edit Status"

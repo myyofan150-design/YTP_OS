@@ -264,18 +264,6 @@ export default function AttendancePage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between animate-fade-in">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Attendance</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{isHR ? "Team attendance overview" : "Your attendance record"}</p>
-        </div>
-        {isHR && (
-          <Button variant="outline" size="sm" onClick={exportCSV} className="h-8 text-xs">
-            ↓ Export CSV
-          </Button>
-        )}
-      </div>
-
       {!isHR && <ClockWidget onRefresh={() => setRefreshKey((k) => k + 1)} />}
 
       {/* Filters */}
@@ -304,6 +292,11 @@ export default function AttendancePage() {
               ))}
             </SelectContent>
           </Select>
+        )}
+        {isHR && (
+          <Button variant="outline" size="sm" onClick={exportCSV} className="ml-auto h-8 text-xs">
+            ↓ Export CSV
+          </Button>
         )}
       </div>
 

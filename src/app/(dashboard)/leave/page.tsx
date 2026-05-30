@@ -268,11 +268,7 @@ export default function LeavePage() {
   if (!isHR) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between animate-fade-in">
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Leave</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Your leave balance and history</p>
-          </div>
+        <div className="flex items-center justify-end animate-fade-in">
           <Button onClick={() => setApplyOpen(true)} className="h-9 text-sm bg-primary hover:bg-primary/85 text-primary-foreground">
             + Apply for Leave
           </Button>
@@ -332,10 +328,6 @@ export default function LeavePage() {
 
   return (
     <div className="space-y-5">
-      <div className="animate-fade-in">
-        <h1 className="text-xl font-bold text-foreground">Leave Management</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Review and manage leave requests</p>
-      </div>
 
       {/* Tabs */}
       <div className="border-b border-border animate-fade-in delay-100">

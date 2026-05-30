@@ -177,19 +177,6 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between animate-fade-in">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Invoices</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Create and manage client invoices</p>
-        </div>
-        <Link href="/invoices/new">
-          <Button className="h-9 text-sm bg-primary hover:bg-primary/85 text-primary-foreground">
-            <Plus className="h-4 w-4 mr-1.5" />New Invoice
-          </Button>
-        </Link>
-      </div>
-
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -227,7 +214,7 @@ export default function InvoicesPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 animate-fade-in delay-200">
+      <div className="flex flex-wrap items-center gap-3 animate-fade-in delay-200">
         <Input
           placeholder="Search by number or client..."
           value={search}
@@ -262,6 +249,11 @@ export default function InvoicesPage() {
             ))}
           </SelectContent>
         </Select>
+        <Link href="/invoices/new" className="ml-auto">
+          <Button className="h-9 text-sm bg-primary hover:bg-primary/85 text-primary-foreground">
+            <Plus className="h-4 w-4 mr-1.5" />New Invoice
+          </Button>
+        </Link>
       </div>
 
       {/* Table */}

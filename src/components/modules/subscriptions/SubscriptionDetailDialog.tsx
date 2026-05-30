@@ -1,6 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+
+const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
+function toFullUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
+  return `${BACKEND}/${url}`;
+}
 import { Eye, EyeOff, ExternalLink, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -37,12 +44,38 @@ function DaysChip({ daysLeft }: { daysLeft: number }) {
   return <span className="rounded-full px-3 py-1 text-sm font-semibold" style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }}>{daysLeft} days left</span>;
 }
 
-function MetaBadge({ option }: { option: MetaOption | null }) {
-  if (!option) return null;
+const TIER_COLOR: Record<string, string> = {
+  free:    "#6B7280",
+  basic:   "#3B82F6",
+  trial:   "#F59E0B",
+  pro:     "#8B5CF6",
+  premium: "#CA8A04",
+};
+
+const USAGE_COLOR: Record<string, string> = {
+  internal: "#64748B",
+  client:   "#0D9488",
+};
+
+function InfoBadge({
+  prefix, value, color,
+}: {
+  prefix: string;
+  value: string;
+  color?: string;
+}) {
+  const bg        = color ? `${color}14` : "rgba(100,116,139,0.1)";
+  const border    = color ? `${color}28` : "rgba(100,116,139,0.18)";
+  const valueColor = color ?? "#64748B";
   return (
-    <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium" style={{ background: `${option.color}18`, color: option.color }}>
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: option.color }} />
-      {option.label}
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs"
+      style={{ background: bg, border: `1px solid ${border}` }}
+    >
+      <span style={{ color: "var(--text-secondary)", fontSize: "10px", fontWeight: 500 }}>{prefix}</span>
+      <span style={{ color: "var(--text-secondary)", fontSize: "10px" }}>·</span>
+      {color && <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: color }} />}
+      <span style={{ color: valueColor, fontWeight: 600 }}>{value}</span>
     </span>
   );
 }
@@ -142,7 +175,7 @@ export function SubscriptionDetailDialog({ open, onClose, uuid, onEdit, onDelete
               {/* Name + logo */}
               <div className="flex items-start gap-3">
                 {sub.logoUrl ? (
-                  <img src={sub.logoUrl} alt={sub.name} className="h-12 w-12 rounded-full object-cover shrink-0 border border-border"
+                  <img src={toFullUrl(sub.logoUrl)!} alt={sub.name} className="h-12 w-12 rounded-full object-cover shrink-0 border border-border"
                     onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                 ) : (
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white"
@@ -155,13 +188,12 @@ export function SubscriptionDetailDialog({ open, onClose, uuid, onEdit, onDelete
                     <DialogTitle className="text-lg">{sub.name}</DialogTitle>
                   </DialogHeader>
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    <MetaBadge option={sub.status} />
-                    <MetaBadge option={sub.category} />
-                    <MetaBadge option={sub.billingCycle} />
-                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-                      style={sub.autopay ? { background: "rgba(34,197,94,0.12)", color: "#22C55E" } : { background: "var(--bg-elevated)", color: "var(--text-secondary)" }}>
-                      {sub.autopay ? "Autopay ON" : "Manual"}
-                    </span>
+                    {sub.status     && <InfoBadge prefix="Status"   value={sub.status.label}       color={sub.status.color} />}
+                    {sub.category   && <InfoBadge prefix="Category" value={sub.category.label}     color={sub.category.color} />}
+                    {sub.billingCycle && <InfoBadge prefix="Cycle"  value={sub.billingCycle.label} color={sub.billingCycle.color} />}
+                    <InfoBadge prefix="Autopay" value={sub.autopay ? "ON" : "Manual"} color={sub.autopay ? "#22C55E" : undefined} />
+                    {sub.planTier  && <InfoBadge prefix="Tier"  value={sub.planTier.charAt(0).toUpperCase() + sub.planTier.slice(1)} color={TIER_COLOR[sub.planTier]} />}
+                    {sub.usageType && <InfoBadge prefix="Usage" value={sub.usageType === "internal" ? "Internal" : "Client"} color={USAGE_COLOR[sub.usageType]} />}
                   </div>
                 </div>
               </div>

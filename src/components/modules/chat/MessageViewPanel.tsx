@@ -210,40 +210,37 @@ export function MessageViewPanel({ conversationUuid, onBack, currentUserId, curr
       {/* ── Header ────────────────────────────────────────────────────────────── */}
       <div
         className="flex items-center gap-3 px-4 h-16 shrink-0"
-        style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-surface)" }}
+        style={{ borderBottom: "1px solid #e9edef", background: "#ffffff" }}
       >
-        <button onClick={onBack} className="md:hidden flex h-7 w-7 items-center justify-center rounded-lg" style={{ color: "var(--text-secondary)" }}>
+        <button onClick={onBack} className="md:hidden flex h-7 w-7 items-center justify-center rounded-lg" style={{ color: "#667781" }}>
           <ArrowLeft size={16} />
         </button>
 
-        <div className="flex-1 flex items-center gap-2 min-w-0">
+        <div className="flex-1 flex items-center gap-3 min-w-0">
           <div
-            className="h-9 w-9 rounded-full shrink-0 flex items-center justify-center text-sm font-semibold text-white"
-            style={{ background: `hsl(${displayName.charCodeAt(0) % 360},55%,40%)` }}
+            className="h-10 w-10 rounded-full shrink-0 flex items-center justify-center text-sm font-semibold text-white"
+            style={{ background: `hsl(${displayName.charCodeAt(0) % 360},55%,42%)` }}
           >
             {displayName[0]?.toUpperCase()}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>{displayName}</p>
-            {!isGroup && (
-              <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
-                {/* online status would go here with real presence data */}
-              </p>
-            )}
-            {isGroup && conversation?.members && (
-              <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
-                {conversation.members.length} members
-              </p>
-            )}
+            <p className="text-[15px] font-semibold truncate" style={{ color: "#111827" }}>{displayName}</p>
+            <p className="text-[12px] leading-tight" style={{ color: typingUsers.length > 0 ? "#00BFA5" : "#667781" }}>
+              {typingUsers.length > 0
+                ? "Typing..."
+                : isGroup && conversation?.members
+                  ? `${conversation.members.length} members`
+                  : ""}
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1">
-          <HeaderBtn icon={<Search size={15} />} title="Search" onClick={() => {}} />
+          <HeaderBtn icon={<Search size={16} />} title="Search" onClick={() => {}} />
           {pinnedMsgs.length > 0 && (
-            <HeaderBtn icon={<Pin size={15} />} title="Pinned messages" onClick={() => setShowInfo(true)} />
+            <HeaderBtn icon={<Pin size={16} />} title="Pinned messages" onClick={() => setShowInfo(true)} />
           )}
-          <HeaderBtn icon={<Info size={15} />} title="Info" onClick={() => setShowInfo(v => !v)} />
+          <HeaderBtn icon={<Info size={16} />} title="Info" onClick={() => setShowInfo(v => !v)} />
         </div>
       </div>
 
@@ -261,7 +258,7 @@ export function MessageViewPanel({ conversationUuid, onBack, currentUserId, curr
       )}
 
       {/* ── Messages ──────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-3" style={{ paddingBottom: 80 }}>
+      <div className="flex-1 overflow-y-auto scrollbar-thin px-2 py-3" style={{ paddingBottom: 80, background: "#f0f2f5" }}>
 
         {/* Load earlier */}
         {hasMore && (
@@ -269,8 +266,8 @@ export function MessageViewPanel({ conversationUuid, onBack, currentUserId, curr
             <button
               onClick={loadMore}
               disabled={isLoading}
-              className="text-xs font-medium px-3 py-1 rounded-full transition-opacity hover:opacity-70"
-              style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+              className="text-xs font-medium px-4 py-1.5 rounded-full transition-opacity hover:opacity-80"
+              style={{ background: "rgba(255,255,255,0.9)", color: "#667781", boxShadow: "0 1px 0.5px rgba(11,20,26,0.13)" }}
             >
               {isLoading ? "Loading…" : "Load earlier messages"}
             </button>
@@ -279,7 +276,7 @@ export function MessageViewPanel({ conversationUuid, onBack, currentUserId, curr
 
         {isLoading && messages.length === 0 && (
           <div className="flex justify-center py-8">
-            <div className="h-5 w-5 rounded-full border-2 border-transparent animate-spin" style={{ borderTopColor: "#03ff94" }} />
+            <div className="h-5 w-5 rounded-full border-2 border-transparent animate-spin" style={{ borderTopColor: "#00BFA5" }} />
           </div>
         )}
 
@@ -287,12 +284,13 @@ export function MessageViewPanel({ conversationUuid, onBack, currentUserId, curr
           <div key={msg.uuid}>
             {/* Date separator */}
             {shouldShowDate(idx) && (
-              <div className="flex items-center gap-3 my-3">
-                <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
-                <span className="text-[11px] shrink-0 px-2" style={{ color: "var(--text-secondary)" }}>
+              <div className="flex justify-center my-3">
+                <span
+                  className="text-[12px] px-3 py-1 rounded-full"
+                  style={{ background: "rgba(255,255,255,0.85)", color: "#667781", boxShadow: "0 1px 0.5px rgba(11,20,26,0.13)" }}
+                >
                   {dateSeparator(msg.createdAt)}
                 </span>
-                <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
               </div>
             )}
             <MessageBubble
@@ -311,62 +309,60 @@ export function MessageViewPanel({ conversationUuid, onBack, currentUserId, curr
           </div>
         ))}
 
-        {/* Typing indicator */}
+        {/* Typing indicator bubble */}
         {typingUsers.length > 0 && (
-          <div className="flex items-center gap-2 mt-1 px-1">
-            <div className="flex gap-1 items-center">
+          <div className="flex items-end gap-2 px-2 mb-1">
+            <div className="flex gap-1 items-center px-3 py-2.5 rounded-[8px]"
+              style={{ background: "#ffffff", boxShadow: "0 1px 0.5px rgba(11,20,26,0.13)" }}>
               {[0, 1, 2].map(i => (
-                <span
-                  key={i}
-                  className="h-1.5 w-1.5 rounded-full animate-bounce"
-                  style={{ background: "#03ff94", animationDelay: `${i * 0.15}s` }}
-                />
+                <span key={i} className="h-2 w-2 rounded-full animate-bounce"
+                  style={{ background: "#b0bec5", animationDelay: `${i * 0.2}s` }} />
               ))}
             </div>
-            <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-              {typingNames.length === 1
-                ? `${typingNames[0]} is typing…`
-                : `${typingNames.slice(0, 2).join(", ")} are typing…`}
-            </span>
           </div>
         )}
 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ── Reply preview ──────────────────────────────────────────────────────── */}
+      {/* ── Reply / Edit preview ───────────────────────────────────────────────── */}
       {(replyTo || editingMsg) && (
         <div
           className="flex items-center gap-2 px-4 py-2 shrink-0"
-          style={{ background: "var(--bg-elevated)", borderTop: "1px solid var(--border)" }}
+          style={{ background: "#ffffff", borderTop: "1px solid #e9edef", borderLeft: `3px solid #00BFA5` }}
         >
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold" style={{ color: "#03ff94" }}>
+            <p className="text-xs font-semibold" style={{ color: "#00BFA5" }}>
               {editingMsg ? "Editing message" : `Replying to ${replyTo!.sender?.name ?? "Unknown"}`}
             </p>
-            <p className="text-xs truncate" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-xs truncate mt-0.5" style={{ color: "#667781" }}>
               {editingMsg ? editingMsg.content : replyTo?.content}
             </p>
           </div>
-          <button onClick={() => { setReplyTo(null); setEditingMsg(null); setInputText(""); }}>
-            <X size={14} style={{ color: "var(--text-secondary)" }} />
+          <button onClick={() => { setReplyTo(null); setEditingMsg(null); setInputText(""); }}
+            className="flex h-6 w-6 items-center justify-center rounded-full transition-colors"
+            style={{ color: "#667781" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#f0f2f5"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+            <X size={14} />
           </button>
         </div>
       )}
 
       {/* ── Input ──────────────────────────────────────────────────────────────── */}
       <div
-        className="flex items-end gap-2 px-3 py-2 shrink-0"
-        style={{ borderTop: "1px solid var(--border)", background: "var(--bg-surface)" }}
+        className="flex items-end gap-2 px-3 py-2.5 shrink-0"
+        style={{ background: "#f0f2f5" }}
       >
         <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={sendingFile}
-          className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
-          style={{ color: "var(--text-secondary)", background: "var(--bg-elevated)" }}
+          className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full transition-opacity hover:opacity-80 disabled:opacity-40"
+          style={{ background: "#00BFA5", color: "#ffffff" }}
+          title="Attach file"
         >
-          <Paperclip size={15} />
+          <Paperclip size={17} />
         </button>
 
         <textarea
@@ -375,24 +371,25 @@ export function MessageViewPanel({ conversationUuid, onBack, currentUserId, curr
           value={inputText}
           onChange={handleTextChange}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message…"
-          className="flex-1 resize-none rounded-lg px-3 py-2 text-sm outline-none scrollbar-thin"
+          placeholder="Type something here..."
+          className="flex-1 resize-none rounded-full px-4 py-2.5 text-[14px] outline-none scrollbar-thin"
           style={{
-            background: "var(--bg-elevated)",
-            border: "1px solid var(--border)",
-            color: "var(--text-primary)",
-            minHeight: 36,
+            background: "#ffffff",
+            border: "none",
+            color: "#111827",
+            minHeight: 40,
             maxHeight: 120,
+            boxShadow: "0 1px 0.5px rgba(11,20,26,0.1)",
           }}
         />
 
         <button
           onClick={handleSend}
-          disabled={!inputText.trim()}
-          className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg transition-opacity disabled:opacity-40"
-          style={{ background: "#03ff94", color: "#000" }}
+          disabled={!inputText.trim() && !sendingFile}
+          className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full transition-opacity hover:opacity-80 disabled:opacity-40"
+          style={{ background: "#00BFA5", color: "#ffffff" }}
         >
-          <Send size={14} />
+          <Send size={17} />
         </button>
       </div>
 
@@ -413,10 +410,10 @@ function HeaderBtn({ icon, title, onClick }: { icon: React.ReactNode; title: str
     <button
       title={title}
       onClick={onClick}
-      className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
-      style={{ color: "var(--text-secondary)" }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-elevated)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+      className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+      style={{ color: "#54656f" }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#f0f2f5"; (e.currentTarget as HTMLElement).style.color = "#111827"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#54656f"; }}
     >
       {icon}
     </button>

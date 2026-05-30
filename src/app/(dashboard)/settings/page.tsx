@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { resolveAssetUrl } from "@/lib/utils";
+import { SETTINGS_UPDATED_EVENT } from "@/hooks/useSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,6 +68,7 @@ export default function SettingsPage() {
       });
       setSettings(res.data.data);
       setSuccessMsg("Settings saved successfully.");
+      window.dispatchEvent(new Event(SETTINGS_UPDATED_EVENT));
     } catch {
       setErrorMsg("Failed to save settings.");
     } finally {

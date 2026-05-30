@@ -50,92 +50,96 @@ export function ConversationListPanel({ activeUuid, onSelect, onNewDirect, onNew
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-3 shrink-0"
-        style={{ borderBottom: "1px solid var(--border)" }}
+        style={{ borderBottom: "1px solid #e9edef", background: "#ffffff" }}
       >
-        <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
+        <h2 className="text-[16px] font-semibold" style={{ color: "#111827" }}>
           Messages
         </h2>
         <div className="flex items-center gap-1">
           <button
             onClick={onNewDirect}
             title="New direct message"
-            className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
-            style={{ color: "var(--text-secondary)" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.background = "var(--bg-elevated)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
+            style={{ color: "#54656f" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#111827"; (e.currentTarget as HTMLElement).style.background = "#f0f2f5"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "#54656f"; (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           >
-            <PenSquare size={16} />
+            <PenSquare size={17} />
           </button>
           {ADMIN_ROLES.includes(userRole) && (
             <button
               onClick={onNewGroup}
               title="New group"
-              className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
-              style={{ color: "var(--text-secondary)" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLElement).style.background = "var(--bg-elevated)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+              className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
+              style={{ color: "#54656f" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#111827"; (e.currentTarget as HTMLElement).style.background = "#f0f2f5"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "#54656f"; (e.currentTarget as HTMLElement).style.background = "transparent"; }}
             >
-              <Users size={16} />
+              <Users size={17} />
             </button>
           )}
         </div>
       </div>
 
       {/* Search */}
-      <div className="px-3 pt-2 pb-1 shrink-0">
+      <div className="px-3 pt-2.5 pb-2 shrink-0" style={{ background: "#ffffff" }}>
         <div
-          className="flex items-center gap-2 px-3 rounded-lg h-8"
-          style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
+          className="flex items-center gap-2 px-3 rounded-full h-9"
+          style={{ background: "#f0f2f5" }}
         >
-          <Search size={13} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />
+          <Search size={14} style={{ color: "#8696a0", flexShrink: 0 }} />
           <input
             type="text"
-            placeholder="Search conversations..."
+            placeholder="Search or Start new chat"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="flex-1 bg-transparent text-xs outline-none"
-            style={{ color: "var(--text-primary)" }}
+            className="flex-1 bg-transparent text-sm outline-none"
+            style={{ color: "#111827" }}
           />
         </div>
       </div>
 
       {/* Tabs */}
       <div
-        className="flex gap-0.5 px-3 py-1.5 shrink-0"
-        style={{ borderBottom: "1px solid var(--border)" }}
+        className="flex px-3 pb-1 shrink-0"
+        style={{ borderBottom: "1px solid #e9edef", background: "#ffffff" }}
       >
-        {(["all", "direct", "group", "contextual"] as const).map(t => (
+        {([
+          { key: "all",    label: "All messages" },
+          { key: "direct", label: "Direct" },
+          { key: "group",  label: "Group" },
+        ] as const).map(({ key, label }) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className="px-2.5 py-1 rounded-md text-xs font-medium capitalize transition-all"
-            style={tab === t
-              ? { background: "rgba(3,255,148,0.15)", color: "#03ff94" }
-              : { color: "var(--text-secondary)" }
-            }
+            key={key}
+            onClick={() => setTab(key)}
+            className="px-3 py-1.5 text-[13px] font-medium transition-all relative"
+            style={{ color: tab === key ? "#00BFA5" : "#667781" }}
           >
-            {t}
+            {label}
+            {tab === key && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ background: "#00BFA5" }} />
+            )}
           </button>
         ))}
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-2 py-1">
+      <div className="flex-1 overflow-y-auto scrollbar-thin py-1" style={{ background: "#ffffff" }}>
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="h-5 w-5 rounded-full border-2 border-transparent animate-spin" style={{ borderTopColor: "#03ff94" }} />
+            <div className="h-5 w-5 rounded-full border-2 border-transparent animate-spin" style={{ borderTopColor: "#00BFA5" }} />
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 gap-2">
             <span className="text-2xl">💬</span>
-            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-              {search ? "No matches" : "No conversations yet"}
+            <p className="text-sm" style={{ color: "#667781" }}>
+              {search ? "No matches found" : "No conversations yet"}
             </p>
             {!search && (
               <button
                 onClick={onNewDirect}
-                className="text-xs font-medium mt-1 transition-opacity hover:opacity-70"
-                style={{ color: "#03ff94" }}
+                className="text-sm font-medium mt-1 transition-opacity hover:opacity-70"
+                style={{ color: "#00BFA5" }}
               >
                 Start a conversation
               </button>

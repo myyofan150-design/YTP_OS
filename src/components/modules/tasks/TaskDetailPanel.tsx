@@ -10,6 +10,7 @@ import { timeAgo, resolveAssetUrl } from "@/lib/utils";
 import { PriorityBadge } from "./PriorityBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DropZone } from "@/components/ui/drop-zone";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -60,7 +61,6 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting]           = useState(false);
   const [duplicating, setDuplicating]     = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
   const memberDropRef = useRef<HTMLDivElement>(null);
 
   const isAdmin   = ["SUPER_ADMIN", "ADMIN", "TEAM_LEAD"].includes(user?.role ?? "");
@@ -208,15 +208,6 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
     fetchTask();
   }
 
-  async function handleAttachment(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !task) return;
-    const fd = new FormData();
-    fd.append("file", file);
-    await api.post(`/tasks/${task.uuid}/attachments`, fd, { headers: { "Content-Type": "multipart/form-data" } });
-    if (fileRef.current) fileRef.current.value = "";
-    fetchTask();
-  }
 
   async function deleteAttachment(attachId: number) {
     if (!task) return;
@@ -489,13 +480,18 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
 
             {/* Attachments */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-slate-600">Attachments ({task.attachments.length})</p>
-                <label className="cursor-pointer text-xs text-indigo-600 hover:text-indigo-800 font-medium">
-                  Upload
-                  <input ref={fileRef} type="file" className="hidden" onChange={handleAttachment} />
-                </label>
-              </div>
+              <p className="text-xs font-semibold text-slate-600 mb-2">Attachments ({task.attachments.length})</p>
+              <DropZone
+                onFile={file => {
+                  const fd = new FormData();
+                  fd.append("file", file);
+                  api.post(`/tasks/${task.uuid}/attachments`, fd, { headers: { "Content-Type": "multipart/form-data" } })
+                    .then(() => fetchTask());
+                }}
+                label="Drag & drop or click to upload"
+                hint="PDF, DOCX, images, ZIP"
+                className="mb-2 py-3"
+              />
               {task.attachments.length === 0 ? (
                 <p className="text-xs text-slate-400">No attachments yet.</p>
               ) : (

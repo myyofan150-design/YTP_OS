@@ -24,16 +24,12 @@ function ChatPageInner() {
   }
 
   return (
-    <div className="flex h-full min-h-0 overflow-hidden rounded-xl" style={{ border: "1px solid var(--border)" }}>
+    <div className="flex h-full min-h-0 overflow-hidden rounded-xl" style={{ border: "1px solid #e9edef" }}>
 
-      {/* ── Conversation list (320px, hidden on mobile when conversation open) ── */}
+      {/* ── Conversation list ── */}
       <div
         className={`shrink-0 flex flex-col${activeUuid ? " hidden md:flex" : " flex"}`}
-        style={{
-          width: "320px",
-          borderRight: "1px solid var(--border)",
-          background: "var(--bg-surface)",
-        }}
+        style={{ width: "340px", borderRight: "1px solid #e9edef", background: "#ffffff" }}
       >
         <ConversationListPanel
           activeUuid={activeUuid}
@@ -44,8 +40,9 @@ function ChatPageInner() {
         />
       </div>
 
-      {/* ── Message view (flex-1) ── */}
-      <div className={`flex-1 min-w-0 flex flex-col${activeUuid ? " flex" : " hidden md:flex"}`}>
+      {/* ── Message view ── */}
+      <div className={`flex-1 min-w-0 flex flex-col${activeUuid ? " flex" : " hidden md:flex"}`}
+        style={{ background: "#f0f2f5" }}>
         {activeUuid ? (
           <MessageViewPanel
             key={activeUuid}
@@ -55,14 +52,14 @@ function ChatPageInner() {
             currentUserRole={user?.role ?? ""}
           />
         ) : (
-          <div className="flex flex-1 items-center justify-center flex-col gap-3" style={{ color: "var(--text-secondary)" }}>
+          <div className="flex flex-1 items-center justify-center flex-col gap-3">
             <div
-              className="flex h-16 w-16 items-center justify-center rounded-full"
-              style={{ background: "var(--bg-elevated)" }}
+              className="flex h-20 w-20 items-center justify-center rounded-full"
+              style={{ background: "rgba(0,191,165,0.1)" }}
             >
-              <span className="text-3xl">💬</span>
+              <span className="text-4xl">💬</span>
             </div>
-            <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-[15px] font-medium" style={{ color: "#667781" }}>
               Select a conversation to start chatting
             </p>
           </div>

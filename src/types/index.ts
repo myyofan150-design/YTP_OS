@@ -516,6 +516,8 @@ export interface Subscription {
   price: number | null;
   currency: string;
   autopay: boolean;
+  planTier: "free" | "basic" | "trial" | "pro" | "premium" | null;
+  usageType: "internal" | "client" | null;
   remarks: string | null;
   daysLeft: number;
   createdAt: string;

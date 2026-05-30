@@ -119,8 +119,8 @@ export function useMessages(conversationUuid: string | null) {
     });
   }, []);
 
-  const updateMessage = useCallback((updatedMsg: ChatMessage) => {
-    setMessages(prev => prev.map(m => m.uuid === updatedMsg.uuid ? updatedMsg : m));
+  const updateMessage = useCallback((updatedMsg: Partial<ChatMessage> & { uuid: string }) => {
+    setMessages(prev => prev.map(m => m.uuid === updatedMsg.uuid ? { ...m, ...updatedMsg } : m));
   }, []);
 
   return { messages, isLoading, hasMore, loadMore, refetch, appendMessage, updateMessage };

@@ -13,7 +13,7 @@ const jakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: "Agency OS",
-  description: "YouTooPreneur Agency Internal Management System",
+  description: "YouTooPreneur™ Agency Internal Management System",
 };
 
 export default function RootLayout({

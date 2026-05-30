@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { resolveAssetUrl } from "@/lib/utils";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +16,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
+  const [logoUrl,  setLogoUrl]  = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState("Agency OS");
+
+  useEffect(() => {
+    api.get("/settings/general").then(r => {
+      const d = r.data.data;
+      if (d?.company_logo_url) setLogoUrl(resolveAssetUrl(d.company_logo_url));
+      if (d?.company_name)     setCompanyName(d.company_name);
+    }).catch(() => {});
+  }, []);
 
   async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
@@ -85,20 +96,29 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-3">
           <div className="relative animate-float">
-            <div
-              className="flex h-14 w-14 items-center justify-center rounded-2xl text-white font-bold text-xl relative z-10"
-              style={{ background: "linear-gradient(135deg, #007359, #03ff94)" }}
-            >
-              AO
-            </div>
-            {/* Glow behind logo */}
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={companyName}
+                className="h-14 w-14 rounded-2xl object-contain relative z-10"
+                style={{ background: "rgba(255,255,255,0.08)", padding: 4 }}
+              />
+            ) : (
+              <div
+                className="flex h-14 w-14 items-center justify-center rounded-2xl text-white font-bold text-xl relative z-10"
+                style={{ background: "linear-gradient(135deg, #007359, #03ff94)" }}
+              >
+                {companyName.slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            {/* Glow */}
             <div
               className="absolute inset-0 rounded-2xl blur-xl opacity-70"
               style={{ background: "linear-gradient(135deg, #007359, #03ff94)" }}
             />
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-white tracking-tight">Agency OS</h1>
+            <h1 className="text-2xl font-bold text-white tracking-tight">{companyName}</h1>
             <p className="text-sm text-slate-400 mt-0.5">Internal Management System</p>
           </div>
         </div>
@@ -207,7 +227,7 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-600">
-          YouTooPreneur Agency OS &copy; {new Date().getFullYear()}
+          YouTooPreneur&#8482; Agency OS &copy; {new Date().getFullYear()}
         </p>
       </div>
     </div>

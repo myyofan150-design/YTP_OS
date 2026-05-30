@@ -53,10 +53,6 @@ export default function ActivityLogsPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="animate-fade-in">
-        <h1 className="text-xl font-bold text-foreground">Activity Logs</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Audit trail of all system actions</p>
-      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 animate-fade-in delay-100">

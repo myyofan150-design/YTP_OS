@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger,
 } from "@/components/ui/select";
-import { Eye, Pencil, Trash2, Phone, Globe, ArrowUpDown, ArrowUp, ArrowDown, X } from "lucide-react";
+import { Pencil, Trash2, Phone, Globe, ArrowUpDown, ArrowUp, ArrowDown, X } from "lucide-react";
 import { resolveAssetUrl } from "@/lib/utils";
 import type { Client, ApiResponse } from "@/types";
 
@@ -189,7 +189,7 @@ export default function ClientsPage() {
 
   // Stat computations
   const active   = clients.filter(c => c.status === "ACTIVE");
-  const tcv      = active.reduce((s, c) => s + (c.totalContractValue ?? 0), 0);
+  const tcv      = clients.reduce((s, c) => s + (c.totalContractValue ?? 0), 0);
   const renewals = clients.filter(c => (c.daysUntilRenewal ?? Infinity) <= 30 && (c.daysUntilRenewal ?? Infinity) >= 0).length;
   const totalCollected = clients.reduce((s, c) => s + (c.totalPaid ?? 0), 0);
 
@@ -257,26 +257,13 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between animate-fade-in">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Clients</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage your agency&apos;s client portfolio</p>
-        </div>
-        {canCreate && (
-          <Button onClick={openAdd} className="h-9 text-sm bg-primary hover:bg-primary/85 text-primary-foreground">
-            + Add Client
-          </Button>
-        )}
-      </div>
-
       {/* Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <StatCard index={0} label="Total Clients"        value={clients.length} />
         <StatCard index={1} label="Active"               value={active.length} sub={`${clients.length - active.length} others`} />
-        <StatCard index={2} label="Total Contract Value" value={tcv > 0 ? fmtCrore(tcv) : "—"} sub="Active clients" />
+        <StatCard index={2} label="Total Contract Value" value={tcv > 0 ? fmtCrore(tcv) : "—"} sub="All statuses" />
         <StatCard index={3} label="Renewals Due"         value={renewals} sub="Within 30 days" />
-        <StatCard index={4} label="Total Collected"      value={fmtCrore(totalCollected)} sub="All clients" />
+        <StatCard index={4} label="Total Collected"      value={fmtCrore(totalCollected)} sub="Paid invoices" />
       </div>
 
       {/* Filters */}
@@ -331,6 +318,12 @@ export default function ClientsPage() {
             <X size={13} />Clear
           </button>
         )}
+
+        {canCreate && (
+          <Button onClick={openAdd} className="ml-auto h-9 text-sm bg-primary hover:bg-primary/85 text-primary-foreground">
+            + Add Client
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -341,7 +334,6 @@ export default function ClientsPage() {
               <tr className="border-b border-border bg-muted/30">
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Company</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contract</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Renewal</th>
@@ -371,28 +363,29 @@ export default function ClientsPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <ClientLogo name={c.companyName} url={c.logoUrl} />
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Link href={`/clients/${c.uuid}`} className="font-semibold text-foreground hover:text-primary transition-colors">
-                            {displayName}
-                          </Link>
-                          <TagBadge tag={c.clientTag} />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Link href={`/clients/${c.uuid}`} className="font-semibold text-foreground hover:text-primary transition-colors">
+                              {displayName}
+                            </Link>
+                            <TagBadge tag={c.clientTag} />
+                          </div>
+                          {c.email ? (
+                            <a href={`mailto:${c.email}`} className="text-[11px] text-muted-foreground hover:text-primary hover:underline truncate max-w-[200px] block transition-colors">
+                              {c.email}
+                            </a>
+                          ) : (
+                            <p className="text-[11px] text-muted-foreground/50">—</p>
+                          )}
+                          {c.assignedToName && (
+                            <p className="text-[11px] text-muted-foreground/70 mt-0.5">Assigned: {c.assignedToName}</p>
+                          )}
                         </div>
                       </div>
-                      {c.assignedToName && (
-                        <p className="text-xs text-muted-foreground mt-0.5">Assigned: {c.assignedToName}</p>
-                      )}
                     </td>
                     {/* Contact */}
                     <td className="px-4 py-3">
                       <p className="text-foreground">{c.contactPerson}</p>
-                    </td>
-                    {/* Email */}
-                    <td className="px-4 py-3">
-                      {c.email ? (
-                        <a href={`mailto:${c.email}`} className="text-xs text-primary hover:underline">{c.email}</a>
-                      ) : (
-                        <span className="text-muted-foreground/40 text-xs">—</span>
-                      )}
                     </td>
                     {/* Status */}
                     <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
@@ -440,10 +433,6 @@ export default function ClientsPage() {
                             <WhatsAppIcon size={14} />
                           </a>
                         )}
-                        <Link href={`/clients/${c.uuid}`} title="View client"
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
-                          <Eye size={13} />
-                        </Link>
                         {canCreate && (
                           <button onClick={() => openEdit(c)} title="Edit client"
                             className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition-colors">

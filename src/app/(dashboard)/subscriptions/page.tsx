@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, Settings, Search, LayoutGrid, CalendarDays, Download, FileText, Table, ChevronDown } from "lucide-react";
+import { Plus, Settings, Search, LayoutGrid, CalendarDays, Download, FileText, Table, ChevronDown, X } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useSubscriptionMeta } from "@/hooks/useSubscriptions";
@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger,
 } from "@/components/ui/select";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -62,6 +62,8 @@ export default function SubscriptionsPage() {
   const [statusId,        setStatusId]        = useState("");
   const [billingCycleId,  setBillingCycleId]  = useState("");
   const [autopayFilter,   setAutopayFilter]   = useState("");
+  const [planTierFilter,  setPlanTierFilter]  = useState("");
+  const [usageTypeFilter, setUsageTypeFilter] = useState("");
 
   // ── Data state ──
   const [allSubs,     setAllSubs]     = useState<Subscription[]>([]);
@@ -72,7 +74,7 @@ export default function SubscriptionsPage() {
 
   // ── View + UI state ──
   const [view,          setView]          = useState<"cards" | "calendar">("cards");
-  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  const [analyticsOpen, setAnalyticsOpen] = useState(true);
 
   // ── Dialog state ──
   const [metaOpen,    setMetaOpen]    = useState(false);
@@ -98,6 +100,8 @@ export default function SubscriptionsPage() {
       if (statusId)        params["statusId"]       = statusId;
       if (billingCycleId)  params["billingCycleId"] = billingCycleId;
       if (autopayFilter)   params["autopay"]        = autopayFilter;
+      if (planTierFilter)  params["planTier"]       = planTierFilter;
+      if (usageTypeFilter) params["usageType"]      = usageTypeFilter;
 
       const res = await api.get<ApiResponse<{ subscriptions: Subscription[]; total: number }>>("/subscriptions", { params });
       const { subscriptions, total } = res.data.data;
@@ -109,7 +113,7 @@ export default function SubscriptionsPage() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [debouncedSearch, categoryId, statusId, billingCycleId, autopayFilter]);
+  }, [debouncedSearch, categoryId, statusId, billingCycleId, autopayFilter, planTierFilter, usageTypeFilter]);
 
   const isFirstRun = useRef(true);
   useEffect(() => {
@@ -117,7 +121,7 @@ export default function SubscriptionsPage() {
     if (isFirstRun.current) { isFirstRun.current = false; }
     fetchSubs(1, false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, categoryId, statusId, billingCycleId, autopayFilter]);
+  }, [debouncedSearch, categoryId, statusId, billingCycleId, autopayFilter, planTierFilter, usageTypeFilter]);
 
   function loadMore() {
     const next = page + 1;
@@ -151,21 +155,51 @@ export default function SubscriptionsPage() {
   // ── Filter selects helper ─────────────────────────────────────────────────
 
   function FilterSelect({
-    value, onValueChange, placeholder, children,
+    value, onValueChange, placeholder, options,
   }: {
-    value: string; onValueChange: (v: string) => void; placeholder: string; children: React.ReactNode;
+    value: string;
+    onValueChange: (v: string) => void;
+    placeholder: string;
+    options: { value: string; label: string; color?: string }[];
   }) {
+    const selected = options.find(o => o.value === value);
     return (
       <Select value={value} onValueChange={v => onValueChange(v ?? "")}>
         <SelectTrigger className="h-8 text-sm" style={{ minWidth: "130px" }}>
-          <SelectValue placeholder={placeholder} />
+          <span className="flex items-center gap-1.5 truncate">
+            {selected ? (
+              <>
+                {selected.color && (
+                  <span className="h-2 w-2 rounded-full shrink-0" style={{ background: selected.color }} />
+                )}
+                <span className="truncate">{selected.label}</span>
+              </>
+            ) : (
+              <span style={{ color: "var(--text-secondary)" }}>{placeholder}</span>
+            )}
+          </span>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="">{placeholder}</SelectItem>
-          {children}
+          {options.map(o => (
+            <SelectItem key={o.value} value={o.value}>
+              <span className="flex items-center gap-1.5">
+                {o.color && <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: o.color }} />}
+                {o.label}
+              </span>
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
     );
+  }
+
+  const anyFilter = !!(debouncedSearch || categoryId || statusId || billingCycleId || autopayFilter || planTierFilter || usageTypeFilter);
+
+  function clearAllFilters() {
+    setSearch(""); setDebouncedSearch("");
+    setCategoryId(""); setStatusId(""); setBillingCycleId("");
+    setAutopayFilter(""); setPlanTierFilter(""); setUsageTypeFilter("");
   }
 
   return (
@@ -179,57 +213,22 @@ export default function SubscriptionsPage() {
             {total > 0 ? `${total} subscription${total !== 1 ? "s" : ""}` : "Manage your tool subscriptions"}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
 
-          {/* View toggle */}
-          <div className="flex overflow-hidden rounded-lg" style={{ border: "1px solid var(--border)" }}>
-            {(["cards", "calendar"] as const).map(v => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className="flex h-8 items-center gap-1.5 px-3 text-xs font-medium transition-all capitalize"
-                style={view === v
-                  ? { background: "var(--accent)", color: "#000" }
-                  : { background: "var(--bg-elevated)", color: "var(--text-secondary)" }}
-              >
-                {v === "cards" ? <LayoutGrid size={13} /> : <CalendarDays size={13} />}
-                {v === "cards" ? "Cards" : "Calendar"}
-              </button>
-            ))}
-          </div>
-
-          {/* Export dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-all"
-              style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+        {/* View toggle */}
+        <div className="flex overflow-hidden rounded-lg" style={{ border: "1px solid var(--border)" }}>
+          {(["cards", "calendar"] as const).map(v => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className="flex h-8 items-center gap-1.5 px-3 text-xs font-medium transition-all capitalize"
+              style={view === v
+                ? { background: "var(--accent)", color: "#000" }
+                : { background: "var(--bg-elevated)", color: "var(--text-secondary)" }}
             >
-              <Download size={13} /> Export <ChevronDown size={11} />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={exportCsv}>
-                <Table size={13} /> Export CSV
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={exportPdf}>
-                <FileText size={13} /> Export PDF
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button size="sm" onClick={() => setAddOpen(true)} className="gap-1.5">
-            <Plus size={14} /> Add Subscription
-          </Button>
-          <button
-            onClick={() => setMetaOpen(true)}
-            title="Manage categories, billing cycles & statuses"
-            className="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
-            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
-          >
-            <Settings size={15} style={{ color: "var(--text-secondary)" }} />
-          </button>
+              {v === "cards" ? <LayoutGrid size={13} /> : <CalendarDays size={13} />}
+              {v === "cards" ? "Cards" : "Calendar"}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -246,43 +245,90 @@ export default function SubscriptionsPage() {
           />
         </div>
 
-        <FilterSelect value={categoryId} onValueChange={setCategoryId} placeholder="All Categories">
-          {categories.map(c => (
-            <SelectItem key={c.uuid} value={String(c.id)}>
-              <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: c.color }} />
-                {c.label}
-              </span>
-            </SelectItem>
-          ))}
-        </FilterSelect>
+        <FilterSelect
+          value={categoryId} onValueChange={setCategoryId} placeholder="All Categories"
+          options={categories.map(c => ({ value: String(c.id), label: c.label, color: c.color }))}
+        />
 
-        <FilterSelect value={statusId} onValueChange={setStatusId} placeholder="All Statuses">
-          {statuses.map(s => (
-            <SelectItem key={s.uuid} value={String(s.id)}>
-              <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: s.color }} />
-                {s.label}
-              </span>
-            </SelectItem>
-          ))}
-        </FilterSelect>
+        <FilterSelect
+          value={statusId} onValueChange={setStatusId} placeholder="All Statuses"
+          options={statuses.map(s => ({ value: String(s.id), label: s.label, color: s.color }))}
+        />
 
-        <FilterSelect value={billingCycleId} onValueChange={setBillingCycleId} placeholder="All Billing Cycles">
-          {billingCycles.map(b => (
-            <SelectItem key={b.uuid} value={String(b.id)}>
-              <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: b.color }} />
-                {b.label}
-              </span>
-            </SelectItem>
-          ))}
-        </FilterSelect>
+        <FilterSelect
+          value={billingCycleId} onValueChange={setBillingCycleId} placeholder="All Billing Cycles"
+          options={billingCycles.map(b => ({ value: String(b.id), label: b.label, color: b.color }))}
+        />
 
-        <FilterSelect value={autopayFilter} onValueChange={setAutopayFilter} placeholder="All Autopay">
-          <SelectItem value="true">Autopay ON</SelectItem>
-          <SelectItem value="false">Manual</SelectItem>
-        </FilterSelect>
+        <FilterSelect
+          value={autopayFilter} onValueChange={setAutopayFilter} placeholder="All Autopay"
+          options={[
+            { value: "true",  label: "Autopay ON" },
+            { value: "false", label: "Manual" },
+          ]}
+        />
+
+        <FilterSelect
+          value={planTierFilter} onValueChange={setPlanTierFilter} placeholder="All Tiers"
+          options={[
+            { value: "free",    label: "Free" },
+            { value: "basic",   label: "Basic" },
+            { value: "trial",   label: "Trial" },
+            { value: "pro",     label: "Pro" },
+            { value: "premium", label: "Premium" },
+          ]}
+        />
+
+        <FilterSelect
+          value={usageTypeFilter} onValueChange={setUsageTypeFilter} placeholder="All Usage"
+          options={[
+            { value: "internal", label: "Internal" },
+            { value: "client",   label: "Client Use" },
+          ]}
+        />
+
+        {anyFilter && (
+          <button
+            onClick={clearAllFilters}
+            className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs font-medium transition-all"
+            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+          >
+            <X size={12} /> Clear
+          </button>
+        )}
+
+        {/* Export dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="ml-auto flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-all"
+            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+          >
+            <Download size={13} /> Export <ChevronDown size={11} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={exportCsv}>
+              <Table size={13} /> Export CSV
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={exportPdf}>
+              <FileText size={13} /> Export PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Button size="sm" onClick={() => setAddOpen(true)} className="gap-1.5">
+          <Plus size={14} /> Add Subscription
+        </Button>
+        <button
+          onClick={() => setMetaOpen(true)}
+          title="Manage categories, billing cycles & statuses"
+          className="flex h-8 w-8 items-center justify-center rounded-lg transition-all"
+          style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
+        >
+          <Settings size={15} style={{ color: "var(--text-secondary)" }} />
+        </button>
       </div>
 
       {/* ── Content: Cards or Calendar ── */}
