@@ -8,6 +8,8 @@ export function cn(...inputs: ClassValue[]) {
 export function resolveAssetUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("blob:")) return url;
+  // Legacy local path (uploads/...) — no longer served; show fallback instead of broken image
+  if (url.startsWith("uploads/")) return null;
   const base = (process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:5000/api").replace(/\/api$/, "");
   return `${base}/${url.replace(/^\//, "")}`;
 }

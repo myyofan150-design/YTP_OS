@@ -712,8 +712,7 @@ function SubtaskRow({
 function AttachmentRow({
   att, taskUuid, onDelete,
 }: { att: TodoAttachment; taskUuid: string; onDelete: () => void }) {
-  const apiBase    = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:5000/api";
-  const downloadUrl = `${apiBase}/todo/tasks/${taskUuid}/attachments/${att.uuid}/download`;
+  const downloadUrl = resolveAssetUrl(att.filePath) ?? att.filePath;
   const ext        = att.fileName.split(".").pop()?.toUpperCase() ?? "FILE";
   const size       = att.fileSize < 1024 * 1024
     ? `${Math.round(att.fileSize / 1024)} KB`

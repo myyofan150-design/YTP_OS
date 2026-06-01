@@ -15,7 +15,7 @@ interface UserResult {
   avatarUrl?: string | null;
 }
 
-const API_ROOT = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/api$/, "");
+import { resolveAssetUrl } from "@/lib/utils";
 
 interface Props {
   conversationUuid: string;
@@ -351,7 +351,7 @@ export function ConversationInfoPanel({ conversationUuid, currentUserRole, onClo
                         {imgFiles.map(f => (
                           <img
                             key={f.uuid}
-                            src={`${API_ROOT}/${f.filePath}`}
+                            src={resolveAssetUrl(f.filePath) ?? f.filePath}
                             alt={f.fileName}
                             className="rounded aspect-square object-cover cursor-pointer"
                           />
@@ -367,7 +367,7 @@ export function ConversationInfoPanel({ conversationUuid, currentUserRole, onClo
                         <span className="text-base shrink-0">📎</span>
                         <span className="text-xs truncate flex-1" style={{ color: "var(--text-primary)" }}>{f.fileName}</span>
                         <a
-                          href={`${API_ROOT}/api/chat/attachments/${f.uuid}/download`}
+                          href={resolveAssetUrl(f.filePath) ?? f.filePath}
                           download={f.fileName}
                           className="text-xs shrink-0"
                           style={{ color: "#03ff94" }}

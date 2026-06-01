@@ -2,12 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
-function toFullUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
-  return `${BACKEND}/${url}`;
-}
+import { resolveAssetUrl as toFullUrl } from "@/lib/utils";
 import { Eye, EyeOff, ExternalLink, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";

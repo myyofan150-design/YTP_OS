@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import type { ChatMessage } from "@/types";
 
-const API_ROOT = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/api$/, "");
+import { resolveAssetUrl } from "@/lib/utils";
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "✅"];
 
 // ── Palette ───────────────────────────────────────────────────────────────────
@@ -156,8 +156,8 @@ export function MessageBubble({
       {/* Avatar — others in group */}
       {!isOwn && isGroup && (
         <div className="shrink-0 mr-2 self-end mb-4">
-          {msg.sender?.avatarUrl ? (
-            <img src={`${API_ROOT}/${msg.sender.avatarUrl}`} alt={msg.sender.name}
+          {resolveAssetUrl(msg.sender?.avatarUrl) ? (
+            <img src={resolveAssetUrl(msg.sender?.avatarUrl)!} alt={msg.sender?.name ?? ""}
               className="h-8 w-8 rounded-full object-cover" />
           ) : (
             <div className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
@@ -298,7 +298,7 @@ export function MessageBubble({
             ) : msg.type === "image" && msg.attachments?.[0] ? (
               (() => {
                 const att = msg.attachments![0]!;
-                const src = `${API_ROOT}/${att.filePath}`;
+                const src = resolveAssetUrl(att.filePath) ?? att.filePath;
                 const dlHref = `/api/chat/attachments/${att.uuid}/download`;
                 if (!mediaLoaded) return (
                   <WaMedia icon="🖼️" label={att.fileName} size={att.fileSize} dlHref={dlHref} dlName={att.fileName}
@@ -323,7 +323,7 @@ export function MessageBubble({
             ) : msg.type === "file" && msg.attachments?.[0] && msg.attachments[0].fileType.startsWith("video/") ? (
               (() => {
                 const att = msg.attachments![0]!;
-                const src = `${API_ROOT}/${att.filePath}`;
+                const src = resolveAssetUrl(att.filePath) ?? att.filePath;
                 const dlHref = `/api/chat/attachments/${att.uuid}/download`;
                 if (!mediaLoaded) return (
                   <WaMedia icon="🎬" label={att.fileName} size={att.fileSize} dlHref={dlHref} dlName={att.fileName}
@@ -364,7 +364,7 @@ export function MessageBubble({
                     </div>
                     <div style={{ height: 1, background: isOwn ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.06)" }} />
                     <div className="flex">
-                      <a href={`${API_ROOT}/${att.filePath}`} target="_blank" rel="noreferrer"
+                      <a href={resolveAssetUrl(att.filePath) ?? att.filePath} target="_blank" rel="noreferrer"
                         className="flex flex-1 items-center justify-center py-2 text-xs font-semibold hover:opacity-75 transition-opacity"
                         style={{ color: isOwn ? "rgba(255,255,255,0.9)" : C.green }}
                         onClick={e => e.stopPropagation()}>

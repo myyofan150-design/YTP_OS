@@ -5,6 +5,7 @@ import { X, Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import type { ApiResponse } from "@/types";
+import { resolveAssetUrl } from "@/lib/utils";
 
 interface UserResult {
   id: number;
@@ -59,7 +60,6 @@ export function NewDirectChatDialog({ onClose, onCreated }: Props) {
     }
   }
 
-  const API_ROOT = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/api$/, "");
 
   return (
     <div
@@ -118,8 +118,8 @@ export function NewDirectChatDialog({ onClose, onCreated }: Props) {
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-elevated)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
               >
-                {u.avatarUrl ? (
-                  <img src={`${API_ROOT}/${u.avatarUrl}`} alt={u.name} className="h-9 w-9 rounded-full object-cover shrink-0" />
+                {resolveAssetUrl(u.avatarUrl) ? (
+                  <img src={resolveAssetUrl(u.avatarUrl)!} alt={u.name} className="h-9 w-9 rounded-full object-cover shrink-0" />
                 ) : (
                   <div
                     className="h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold text-white shrink-0"

@@ -215,7 +215,6 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
     fetchTask();
   }
 
-  const apiBase = process.env["NEXT_PUBLIC_API_URL"]?.replace("/api", "") ?? "http://localhost:5000";
 
   if (!uuid) return null;
 
@@ -498,7 +497,7 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
                 <div className="space-y-1.5">
                   {task.attachments.map((att) => (
                     <div key={att.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                      <a href={`${apiBase}/${att.filePath}`} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline font-medium truncate">
+                      <a href={resolveAssetUrl(att.filePath) ?? att.filePath} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline font-medium truncate">
                         {att.fileName}
                       </a>
                       <button onClick={() => deleteAttachment(att.id)} className="text-xs text-red-500 hover:text-red-700 shrink-0">✕</button>

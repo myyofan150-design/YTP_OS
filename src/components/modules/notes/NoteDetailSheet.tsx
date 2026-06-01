@@ -7,16 +7,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { timeAgo } from "@/lib/utils";
+import { timeAgo, resolveAssetUrl } from "@/lib/utils";
 import { useNote } from "@/hooks/useNotes";
 import { CategoryBadge } from "./CategoryBadge";
 import { PriorityIndicator } from "./PriorityIndicator";
 import { RichTextEditor } from "@/components/shared/RichTextEditor";
 import type { NoteAttachment } from "@/types";
 
-const API_ROOT = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/api$/, "");
-
-function fileUrl(filePath: string) { return `${API_ROOT}/${filePath}`; }
+function fileUrl(filePath: string) { return resolveAssetUrl(filePath) ?? filePath; }
 
 function fmtBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -317,7 +315,7 @@ export function NoteDetailSheet({ noteUuid, onClose, onEdit, onRefetch }: Props)
                           <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{fmtBytes(att.fileSize)}</p>
                         </div>
                         <a
-                          href={`${API_ROOT}/api/notes/${note.uuid}/attachments/${att.uuid}/download`}
+                          href={fileUrl(att.filePath)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"

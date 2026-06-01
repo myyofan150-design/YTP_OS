@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
 import { Client } from "@/types";
+import { resolveAssetUrl } from "@/lib/utils";
 
 interface CompanySettings {
   company_name: string | null;
@@ -42,11 +43,10 @@ function initials(name: string) {
 }
 
 function ClientAvatar({ client }: { client: Client }) {
-  const apiBase = (process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:5000/api").replace("/api", "");
-  if (client.logoUrl) {
+  if (resolveAssetUrl(client.logoUrl)) {
     return (
       <img
-        src={`${apiBase}/${client.logoUrl}`}
+        src={resolveAssetUrl(client.logoUrl)!}
         alt={client.companyName ?? ""}
         className="h-6 w-6 rounded-full object-cover border border-slate-200"
       />
@@ -153,8 +153,7 @@ function InvoicePreview({
   const gstAmt    = subtotal * (parseFloat(gstRate) / 100 || 0);
   const total     = subtotal + gstAmt;
   const fmtD      = (s: string) => s ? new Date(s + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
-  const apiBase   = (process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:5000/api").replace("/api", "");
-  const logoSrc   = company.company_logo_url ? `${apiBase}/${company.company_logo_url}` : null;
+  const logoSrc   = resolveAssetUrl(company.company_logo_url);
   const orgName   = company.company_name || "Your Company";
   const tagline   = company.company_tagline || "";
 

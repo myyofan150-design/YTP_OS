@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import api from "@/lib/api";
 import { Invoice } from "@/types";
+import { resolveAssetUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,8 +54,7 @@ function InvoicePreview({
   const subtotal  = lineItems.reduce((s, i) => s + calcItem(i), 0);
   const gstAmt    = subtotal * (parseFloat(gstRate) / 100 || 0);
   const total     = subtotal + gstAmt;
-  const apiBase   = (process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:5000/api").replace("/api", "");
-  const logoSrc   = company.company_logo_url ? `${apiBase}/${company.company_logo_url}` : null;
+  const logoSrc   = resolveAssetUrl(company.company_logo_url);
   const orgName   = company.company_name || "Your Company";
   const tagline   = company.company_tagline || "";
 

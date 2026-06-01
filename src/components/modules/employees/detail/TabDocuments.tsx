@@ -28,7 +28,8 @@ const VERIFICATION_STYLES: Record<string, string> = {
   rejected: "bg-red-50 text-red-600 border border-red-200",
 };
 
-const apiBase = process.env["NEXT_PUBLIC_API_URL"]?.replace("/api", "") ?? "http://localhost:5000";
+import { resolveAssetUrl } from "@/lib/utils";
+
 
 export function TabDocuments({ employee, uuid, canEdit }: DetailTabProps) {
   const router = useRouter();
@@ -98,7 +99,7 @@ export function TabDocuments({ employee, uuid, canEdit }: DetailTabProps) {
                   </span>
                 )}
                 {doc?.filePath && (
-                  <a href={`${apiBase}/${doc.filePath}`} target="_blank" rel="noreferrer"
+                  <a href={resolveAssetUrl(doc.filePath) ?? doc.filePath} target="_blank" rel="noreferrer"
                     className="text-xs text-primary hover:text-primary/70 font-medium px-2.5 py-1 rounded-md border border-border hover:bg-muted/40 transition-colors shrink-0">
                     View
                   </a>
@@ -148,7 +149,7 @@ export function TabDocuments({ employee, uuid, canEdit }: DetailTabProps) {
                     </span>
                   )}
                   {doc?.filePath && (
-                    <a href={`${apiBase}/${doc.filePath}`} target="_blank" rel="noreferrer"
+                    <a href={resolveAssetUrl(doc.filePath) ?? doc.filePath} target="_blank" rel="noreferrer"
                       className="text-xs text-primary hover:text-primary/70 font-medium px-2.5 py-1 rounded-md border border-border hover:bg-muted/40 transition-colors shrink-0">
                       View
                     </a>

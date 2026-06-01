@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ClientDocument } from "@/types";
+import { resolveAssetUrl } from "@/lib/utils";
 
 function FileTypeIcon({ ext }: { ext: string }) {
   const e = ext.toLowerCase();
@@ -125,7 +126,6 @@ export function DocumentsTab({ uuid, documents, canEdit, onRefresh }: Props) {
     return new Date(s).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
   }
 
-  const apiBase = process.env["NEXT_PUBLIC_API_URL"]?.replace("/api", "") ?? "http://localhost:5000";
 
   return (
     <div className="space-y-4">
@@ -193,7 +193,7 @@ export function DocumentsTab({ uuid, documents, canEdit, onRefresh }: Props) {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <a
-                  href={`${apiBase}/${doc.filePath}`}
+                  href={resolveAssetUrl(doc.filePath) ?? doc.filePath}
                   target="_blank"
                   rel="noreferrer"
                   className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import type { Subscription } from "@/types";
+import { resolveAssetUrl } from "@/lib/utils";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -204,9 +205,9 @@ export function SubscriptionCalendar({ subs, onSelectSub }: Props) {
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-elevated)"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-surface)"; }}
                 >
-                  {sub.logoUrl ? (
+                  {resolveAssetUrl(sub.logoUrl) ? (
                     <img
-                      src={sub.logoUrl}
+                      src={resolveAssetUrl(sub.logoUrl)!}
                       alt={sub.name}
                       className="h-6 w-6 rounded-full object-cover shrink-0"
                       style={{ border: "1px solid var(--border)" }}

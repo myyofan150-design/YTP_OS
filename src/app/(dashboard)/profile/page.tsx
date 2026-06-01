@@ -5,23 +5,18 @@ import { Camera, Upload } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+import { resolveAssetUrl } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RoleBadge } from "@/components/modules/users/RoleBadge";
 import { Badge } from "@/components/ui/badge";
 
-const API_ROOT = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/api$/, "");
-
 function getInitials(name: string) {
   return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
-function toAbsUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
-  return `${API_ROOT}/${url}`;
-}
+const toAbsUrl = resolveAssetUrl;
 
 // ─── Avatar Upload Zone ───────────────────────────────────────────────────────
 

@@ -6,6 +6,7 @@ import Link from "next/link";
 import api from "@/lib/api";
 import { Invoice } from "@/types";
 import { Button } from "@/components/ui/button";
+import { resolveAssetUrl } from "@/lib/utils";
 import { ArrowLeft, Download, Send, Pencil, CheckCircle, Loader2 } from "lucide-react";
 
 interface CompanySettings {
@@ -115,7 +116,7 @@ export default function InvoiceViewPage() {
 
   const sl        = statusLabel(invoice);
   const apiBase   = (process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:5000/api").replace("/api", "");
-  const logoSrc   = company.company_logo_url ? `${apiBase}/${company.company_logo_url}` : null;
+  const logoSrc   = resolveAssetUrl(company.company_logo_url);
   const orgName   = company.company_name || "Your Company";
   const tagline   = company.company_tagline || "";
   const subtotal  = Number(invoice.subtotal);

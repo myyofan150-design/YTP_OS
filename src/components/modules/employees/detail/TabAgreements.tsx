@@ -16,7 +16,8 @@ const AGREEMENT_SLOTS = [
   { agreementType: "code_of_conduct",      name: "Code of Conduct" },
 ];
 
-const apiBase = process.env["NEXT_PUBLIC_API_URL"]?.replace("/api", "") ?? "http://localhost:5000";
+import { resolveAssetUrl } from "@/lib/utils";
+
 
 export function TabAgreements({ employee, uuid, canEdit }: DetailTabProps) {
   const router = useRouter();
@@ -74,7 +75,7 @@ export function TabAgreements({ employee, uuid, canEdit }: DetailTabProps) {
                   )}
                 </div>
                 {ag?.filePath && (
-                  <a href={`${apiBase}/${ag.filePath}`} target="_blank" rel="noreferrer"
+                  <a href={resolveAssetUrl(ag.filePath) ?? ag.filePath} target="_blank" rel="noreferrer"
                     className="p-1.5 rounded-md hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors shrink-0">
                     <Download className="w-3.5 h-3.5" />
                   </a>
@@ -93,7 +94,7 @@ export function TabAgreements({ employee, uuid, canEdit }: DetailTabProps) {
                 </p>
               </div>
               {ag.filePath && (
-                <a href={`${apiBase}/${ag.filePath}`} target="_blank" rel="noreferrer"
+                <a href={resolveAssetUrl(ag.filePath) ?? ag.filePath} target="_blank" rel="noreferrer"
                   className="p-1.5 rounded-md hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors shrink-0">
                   <Download className="w-3.5 h-3.5" />
                 </a>

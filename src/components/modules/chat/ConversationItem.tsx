@@ -2,8 +2,7 @@
 
 import { BellOff } from "lucide-react";
 import type { ChatConversation } from "@/types";
-
-const API_ROOT = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/api$/, "");
+import { resolveAssetUrl } from "@/lib/utils";
 
 interface Props {
   conversation: ChatConversation;
@@ -59,9 +58,9 @@ export function ConversationItem({ conversation: c, isActive, isOnline, onClick 
     >
       {/* Avatar */}
       <div className="relative shrink-0">
-        {avatar ? (
+        {resolveAssetUrl(avatar) ? (
           <img
-            src={`${API_ROOT}/${avatar}`}
+            src={resolveAssetUrl(avatar)!}
             alt={displayName}
             className="rounded-full object-cover"
             style={{ width: 46, height: 46 }}

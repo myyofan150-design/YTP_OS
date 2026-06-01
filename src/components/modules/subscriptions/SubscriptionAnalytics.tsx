@@ -2,12 +2,7 @@
 
 import { useMemo } from "react";
 
-const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
-function toFullUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
-  return `${BACKEND}/${url}`;
-}
+import { resolveAssetUrl as toFullUrl } from "@/lib/utils";
 import {
   PieChart, Pie, Cell, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer,

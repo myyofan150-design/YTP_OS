@@ -1,14 +1,7 @@
 "use client";
 
 import type { Subscription } from "@/types";
-
-const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
-
-function toFullUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
-  return `${BACKEND}/${url}`;
-}
+import { resolveAssetUrl as toFullUrl } from "@/lib/utils";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
