@@ -396,7 +396,7 @@ export default function DashboardPage() {
       {/* Todo & Task metrics — 2 columns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {stats && (
+        {stats?.todos && (
           <ChartCard
             delay={500}
             title="Todo Metrics"
