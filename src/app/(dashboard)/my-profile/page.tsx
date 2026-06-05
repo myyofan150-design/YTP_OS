@@ -528,7 +528,7 @@ function PayslipsPanel({ payslips }: { payslips: PayslipRow[] }) {
       {/* Filters — clients page style */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Year filter */}
-        <Select value={yearFilter} onValueChange={v => setYearFilter(v === "__all__" ? "" : v)}>
+        <Select value={yearFilter} onValueChange={v => setYearFilter(v === "__all__" || !v ? "" : v)}>
           <SelectTrigger className="h-9 w-36 text-sm">
             <span className="flex items-center gap-1 truncate">
               <span className="text-muted-foreground shrink-0">Year:</span>
@@ -542,7 +542,7 @@ function PayslipsPanel({ payslips }: { payslips: PayslipRow[] }) {
         </Select>
 
         {/* Month filter */}
-        <Select value={monthFilter} onValueChange={v => setMonthFilter(v === "__all__" ? "" : v)}>
+        <Select value={monthFilter} onValueChange={v => setMonthFilter(v === "__all__" || !v ? "" : v)}>
           <SelectTrigger className="h-9 w-40 text-sm">
             <span className="flex items-center gap-1 truncate">
               <span className="text-muted-foreground shrink-0">Month:</span>
@@ -558,7 +558,7 @@ function PayslipsPanel({ payslips }: { payslips: PayslipRow[] }) {
         </Select>
 
         {/* Status filter */}
-        <Select value={statusFilter} onValueChange={v => setStatusFilter(v === "__all__" ? "" : v)}>
+        <Select value={statusFilter} onValueChange={v => setStatusFilter(v === "__all__" || !v ? "" : v)}>
           <SelectTrigger className="h-9 w-40 text-sm">
             <span className="flex items-center gap-1 truncate">
               <span className="text-muted-foreground shrink-0">Status:</span>

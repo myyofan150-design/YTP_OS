@@ -58,7 +58,7 @@ function AddHolidayModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Type</label>
-            <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
+            <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v ?? f.type }))}>
               <SelectTrigger className="h-9 text-sm"><span>{form.type}</span></SelectTrigger>
               <SelectContent>
                 <SelectItem value="NATIONAL">National Holiday</SelectItem>

@@ -73,7 +73,7 @@ function SubmitModal({ onClose, onSubmitted }: { onClose: () => void; onSubmitte
 
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Attendance Type *</label>
-            <Select value={form.requestedType} onValueChange={v => setForm(f => ({ ...f, requestedType: v }))}>
+            <Select value={form.requestedType} onValueChange={v => setForm(f => ({ ...f, requestedType: v ?? f.requestedType }))}>
               <SelectTrigger className="h-9 text-sm"><span>{form.requestedType.replace("_"," ")}</span></SelectTrigger>
               <SelectContent>
                 <SelectItem value="PRESENT">Present</SelectItem>
