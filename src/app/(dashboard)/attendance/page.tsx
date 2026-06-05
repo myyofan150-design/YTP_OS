@@ -322,7 +322,7 @@ function OverrideModal({ log, onClose, onSaved }: { log: AttendanceLog; onClose:
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Type</label>
-            <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
+            <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v as typeof f.type }))}>
               <SelectTrigger className="h-9 text-sm"><span>{form.type.replace("_"," ")}</span></SelectTrigger>
               <SelectContent>
                 {["PRESENT","HALF_DAY","ABSENT","LEAVE","COMP_OFF","HOLIDAY","WFH"].map(t => (
