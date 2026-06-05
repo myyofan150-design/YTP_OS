@@ -194,6 +194,7 @@ const DEFAULT_DOC_SLOTS: DocSlotForm[] = [
   { slot: "PAN Card",                        docType: "ID_PROOF", category: "identity",  isMandatory: true,  fileName: null },
   { slot: "Bank Passbook / Cancelled Cheque", docType: "OTHER",   category: "banking",   isMandatory: true,  fileName: null },
   { slot: "Highest Education Certificate",   docType: "OTHER",    category: "education", isMandatory: true,  fileName: null },
+  { slot: "Resume",                          docType: "OTHER",    category: "other",     isMandatory: true,  fileName: null },
   { slot: "Passport",                        docType: "ID_PROOF", category: "identity",  isMandatory: false, fileName: null },
   { slot: "Experience Certificate",          docType: "OTHER",    category: "experience",isMandatory: false, fileName: null },
   { slot: "Last 3 Payslips",                 docType: "OTHER",    category: "experience",isMandatory: false, fileName: null },

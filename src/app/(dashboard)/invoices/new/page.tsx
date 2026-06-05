@@ -371,7 +371,7 @@ export default function NewInvoicePage() {
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 animate-fade-in">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4 mr-1" />Back
         </Button>
@@ -381,7 +381,7 @@ export default function NewInvoicePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-fade-up delay-100">
         {/* ── LEFT: Form ─────────────────────────────────────── */}
         <div className="space-y-5">
           {/* Client + Dates */}

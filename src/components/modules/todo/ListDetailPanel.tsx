@@ -7,7 +7,7 @@ import {
 import {
   MoreHorizontal, Pencil, Trash2, Plus, Check,
   Search, X, LayoutGrid, List, UserPlus, Users,
-  Flame, Zap, Leaf, Trophy,
+  Flame, Zap, Trophy,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -15,7 +15,47 @@ import { useTodoList } from "@/hooks/useTodo";
 import { useAuth } from "@/hooks/useAuth";
 import { TaskCard } from "./TaskCard";
 import { TaskDetailDrawer } from "./TaskDetailDrawer";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger,
+} from "@/components/ui/select";
 import type { ApiResponse, TodoTask } from "@/types";
+
+function FilterSelect({
+  label, value, options, placeholder = "All",
+  onChange,
+}: {
+  label:    string;
+  value:    string;
+  options:  { value: string; label: string }[];
+  placeholder?: string;
+  onChange: (v: string) => void;
+}) {
+  const selected = options.find(o => o.value === value);
+  const isActive = !!value && value !== "";
+  return (
+    <Select value={value} onValueChange={v => onChange(v ?? "")}>
+      <SelectTrigger
+        className="h-9 text-sm w-36"
+        style={{
+          borderColor: isActive ? "var(--primary)" : undefined,
+          color:       isActive ? "var(--primary)" : undefined,
+          background:  isActive ? "rgba(var(--primary-rgb),0.06)" : undefined,
+        }}
+      >
+        <span className="flex items-center gap-1 truncate min-w-0">
+          <span className="text-muted-foreground shrink-0">{label}:</span>
+          <span className="truncate">{selected ? selected.label : placeholder}</span>
+        </span>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="">{placeholder}</SelectItem>
+        {options.map(o => (
+          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 interface EmpOption { id: number; name: string; email: string }
 
@@ -23,7 +63,7 @@ interface EmpOption { id: number; name: string; email: string }
 
 const COLUMNS = [
   {
-    id:       "high"      as const,
+    id:       "todo"       as const,
     label:    "Urgent",
     icon:     Flame,
     accent:   "#ef4444",
@@ -35,7 +75,7 @@ const COLUMNS = [
     emptyMsg: "No urgent tasks",
   },
   {
-    id:       "medium"    as const,
+    id:       "inprogress" as const,
     label:    "In Progress",
     icon:     Zap,
     accent:   "#6366f1",
@@ -47,27 +87,15 @@ const COLUMNS = [
     emptyMsg: "No active tasks",
   },
   {
-    id:       "low"       as const,
-    label:    "Backlog",
-    icon:     Leaf,
+    id:       "completed"  as const,
+    label:    "Completed",
+    icon:     Trophy,
     accent:   "#22c55e",
     glow:     "rgba(34,197,94,0.12)",
     headerBg: "linear-gradient(135deg, rgba(34,197,94,0.12) 0%, rgba(34,197,94,0.04) 100%)",
     zoneBg:   "rgba(34,197,94,0.025)",
     overBg:   "rgba(34,197,94,0.06)",
     pillCls:  "bg-green-500/12 text-green-400 border-green-500/25",
-    emptyMsg: "No backlog tasks",
-  },
-  {
-    id:       "completed" as const,
-    label:    "Completed",
-    icon:     Trophy,
-    accent:   "#f59e0b",
-    glow:     "rgba(245,158,11,0.10)",
-    headerBg: "linear-gradient(135deg, rgba(245,158,11,0.10) 0%, rgba(245,158,11,0.03) 100%)",
-    zoneBg:   "rgba(245,158,11,0.02)",
-    overBg:   "rgba(245,158,11,0.05)",
-    pillCls:  "bg-amber-500/12 text-amber-400 border-amber-500/25",
     emptyMsg: "Finished tasks appear here",
   },
 ] as const;
@@ -75,18 +103,23 @@ const COLUMNS = [
 type ColId = typeof COLUMNS[number]["id"];
 
 function colTasks(tasks: TodoTask[], col: ColId): TodoTask[] {
-  if (col === "completed") return tasks.filter(t => t.status === "completed");
-  if (col === "high")      return tasks.filter(t => t.status === "pending" && t.priority === "high");
-  if (col === "medium")    return tasks.filter(t => t.status === "pending" && t.priority === "medium");
-  return tasks.filter(t => t.status === "pending" && (t.priority === "low" || t.priority === "none"));
+  if (col === "completed")  return tasks.filter(t => t.status === "completed");
+  if (col === "todo")       return tasks.filter(t => t.status === "pending" && t.stage === "todo");
+  return tasks.filter(t => t.status === "pending" && t.stage !== "todo");
 }
 
-const PRIORITY_FILTERS = [
-  { label: "All",      value: "all"    },
-  { label: "Urgent",   value: "high"   },
-  { label: "Medium",   value: "medium" },
-  { label: "Backlog",  value: "low"    },
-] as const;
+const PRIORITY_OPTS = [
+  { value: "high",   label: "High"   },
+  { value: "medium", label: "Medium" },
+  { value: "low",    label: "Low"    },
+  { value: "none",   label: "None"   },
+];
+
+const STATUS_OPTS = [
+  { value: "urgent",      label: "Urgent"      },
+  { value: "inprogress",  label: "In Progress" },
+  { value: "completed",   label: "Completed"   },
+];
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -100,7 +133,8 @@ export function ListDetailPanel({ listUuid }: Props) {
   const [nameValue,    setNameValue]    = useState("");
   const [view,         setView]         = useState<"board" | "list">("board");
   const [search,       setSearch]       = useState("");
-  const [priFilter,    setPriFilter]    = useState<string>("all");
+  const [priFilter,    setPriFilter]    = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [addingTo,     setAddingTo]     = useState<ColId | null>(null);
   const [addTitle,     setAddTitle]     = useState("");
   const [listMenuOpen, setListMenuOpen] = useState(false);
@@ -152,12 +186,18 @@ export function ListDetailPanel({ listUuid }: Props) {
   const pendingCount = totalCount - doneCount;
   const donePercent  = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
+  const hasFilters = !!(search || priFilter || statusFilter);
+
+  function clearFilters() {
+    setSearch(""); setPriFilter(""); setStatusFilter("");
+  }
+
   const filteredTasks = allTasks.filter(t => {
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
-    if (priFilter !== "all") {
-      if (priFilter === "low" && t.priority !== "low" && t.priority !== "none") return false;
-      if (priFilter !== "low" && t.priority !== priFilter) return false;
-    }
+    if (priFilter && t.priority !== priFilter) return false;
+    if (statusFilter === "urgent")     return t.status === "pending" && t.priority === "high";
+    if (statusFilter === "inprogress") return t.status === "pending" && t.priority === "medium";
+    if (statusFilter === "completed")  return t.status === "completed";
     return true;
   });
 
@@ -186,8 +226,8 @@ export function ListDetailPanel({ listUuid }: Props) {
   async function submitAdd() {
     const title = addTitle.trim();
     if (!title || !addingTo) return;
-    const priority = addingTo === "completed" ? "none" : addingTo;
-    const ok = await createTask({ title, priority });
+    const stage = addingTo === "completed" ? "inprogress" : addingTo;
+    const ok = await createTask({ title, stage });
     if (ok) { setAddTitle(""); setAddingTo(null); }
   }
 
@@ -203,8 +243,7 @@ export function ListDetailPanel({ listUuid }: Props) {
       if (dstCol === "completed") {
         if (task.status !== "completed") await api.patch(`/todo/tasks/${draggableId}/status`);
       } else {
-        const newPriority = dstCol === "low" ? "low" : dstCol;
-        await api.patch(`/todo/tasks/${draggableId}`, { priority: newPriority });
+        await api.patch(`/todo/tasks/${draggableId}`, { stage: dstCol });
         if (task.status === "completed") await api.patch(`/todo/tasks/${draggableId}/status`);
       }
       await refetch();
@@ -513,23 +552,31 @@ export function ListDetailPanel({ listUuid }: Props) {
           )}
         </div>
 
-        <div className="flex items-center gap-1 p-1 bg-muted/30 rounded-xl border border-border/40">
-          {PRIORITY_FILTERS.map(f => (
-            <button
-              key={f.value}
-              onClick={() => setPriFilter(f.value)}
-              className={`h-7 px-3 rounded-lg text-xs font-medium transition-all duration-150
-                ${priFilter === f.value
-                  ? "bg-card text-foreground shadow-sm border border-border/50"
-                  : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+        <FilterSelect
+          label="Priority"
+          value={priFilter}
+          options={PRIORITY_OPTS}
+          onChange={setPriFilter}
+        />
+
+        <FilterSelect
+          label="Status"
+          value={statusFilter}
+          options={STATUS_OPTS}
+          onChange={setStatusFilter}
+        />
+
+        {hasFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1 h-9 px-3 rounded-lg text-sm border border-border text-muted-foreground hover:opacity-70 transition-opacity"
+          >
+            <X size={13} /> Clear
+          </button>
+        )}
 
         <button
-          onClick={() => openAddIn("medium")}
+          onClick={() => openAddIn("inprogress")}
           className="ml-auto flex items-center gap-1.5 h-9 px-4 rounded-xl text-sm font-semibold text-primary-foreground transition-all shadow-md hover:shadow-lg hover:opacity-90 active:scale-95"
           style={{ background: `linear-gradient(135deg, ${listColor}, ${listColor}cc)`, boxShadow: `0 4px 12px ${listColor}40` }}
         >
@@ -713,14 +760,12 @@ export function ListDetailPanel({ listUuid }: Props) {
             </div>
           ) : (
             <>
-              {(["high", "medium", "low"] as const).map(pri => {
+              {(["todo", "inprogress"] as const).map(pri => {
                 const col      = COLUMNS.find(c => c.id === pri)!;
                 const Icon     = col.icon;
                 const priTasks = filteredTasks.filter(t =>
                   t.status === "pending" &&
-                  (pri === "low"
-                    ? t.priority === "low" || t.priority === "none"
-                    : t.priority === pri)
+                  (pri === "todo" ? t.stage === "todo" : t.stage !== "todo")
                 );
                 if (priTasks.length === 0) return null;
                 return (

@@ -19,14 +19,16 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// On 401, clear storage and redirect to login
+// On 401, only redirect if the user had an active session (token existed).
+// Public endpoints like /2fa/verify also return 401 for wrong codes — don't redirect those.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== "undefined") {
+      const hadToken = !!localStorage.getItem("agency_token");
       localStorage.removeItem("agency_token");
       localStorage.removeItem("agency_user");
-      window.location.href = "/login";
+      if (hadToken) window.location.href = "/login";
     }
     return Promise.reject(error);
   }

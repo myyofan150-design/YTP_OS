@@ -86,6 +86,7 @@ const MANDATORY_DOC_SLOTS = [
   { slotName: "PAN Card",                         docType: "ID_PROOF" },
   { slotName: "Bank Passbook / Cancelled Cheque", docType: "OTHER"    },
   { slotName: "Highest Education Certificate",    docType: "OTHER"    },
+  { slotName: "Resume",                           docType: "OTHER"    },
 ];
 const OPTIONAL_DOC_SLOTS = [
   { slotName: "Passport",              docType: "ID_PROOF" },
@@ -1231,7 +1232,7 @@ export default function EmployeeEditPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b border-border bg-card px-6 py-4">
+      <div className="border-b border-border bg-card px-6 py-4 animate-fade-in">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button onClick={() => router.push(`/employees/${uuid}`)}
@@ -1262,7 +1263,7 @@ export default function EmployeeEditPage() {
         </div>
       </div>
 
-      <div className="flex">
+      <div className="flex animate-fade-up delay-100">
         {/* Sidebar */}
         <div className="w-56 shrink-0 border-r border-border min-h-[calc(100vh-65px)] bg-card/50 p-3">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-2 mt-1">

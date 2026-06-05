@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Download, Loader2, RefreshCw } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { resolveAssetUrl } from "@/lib/utils";
@@ -94,9 +94,7 @@ export default function EmployeeDetailPage() {
   });
   const [changingStatus, setChangingStatus] = useState(false);
 
-  // PDF export
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [avatarErr, setAvatarErr]   = useState(false);
+const [avatarErr, setAvatarErr]   = useState(false);
 
   const canEdit   = HR_ROLES.includes(user?.role ?? "");
   const canSeeFin = FIN_ROLES.includes(user?.role ?? "");
@@ -114,27 +112,6 @@ export default function EmployeeDetailPage() {
   }, [uuid]);
 
   useEffect(() => { fetchEmployee(); }, [fetchEmployee]);
-
-  async function exportPdf() {
-    if (!employee) return;
-    setPdfLoading(true);
-    try {
-      const res = await api.get(`/employees/${uuid}/export-pdf`, { responseType: "blob" });
-      const url  = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement("a");
-      link.href  = url;
-      link.setAttribute("download", `employee-${employee.employeeCode}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success("PDF downloaded");
-    } catch {
-      toast.error("PDF generation failed");
-    } finally {
-      setPdfLoading(false);
-    }
-  }
 
   function openStatusChange() {
     if (!employee) return;
@@ -201,12 +178,12 @@ export default function EmployeeDetailPage() {
     <div className="space-y-0">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="border-b border-border bg-card px-6 py-4">
+      <div className="border-b border-border bg-card px-6 py-4 animate-fade-in">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             {/* Back */}
             <button
-              onClick={() => router.back()}
+              onClick={() => router.push("/employees")}
               className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors shrink-0"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -241,13 +218,7 @@ export default function EmployeeDetailPage() {
             <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground" onClick={fetchEmployee}>
               <RefreshCw className="w-3 h-3" />
             </Button>
-            {canEdit && (
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={exportPdf} disabled={pdfLoading}>
-                {pdfLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                Export PDF
-              </Button>
-            )}
-            {canEdit && (
+{canEdit && (
               <Button size="sm" className="h-8 text-xs" onClick={openStatusChange}>
                 Change Status
               </Button>
@@ -282,7 +253,7 @@ export default function EmployeeDetailPage() {
       </div>
 
       {/* ── Tab content ────────────────────────────────────────────────────── */}
-      <div className="p-6">
+      <div className="p-6 animate-fade-up delay-100">
         {tabProps && tab === "overview"    && <TabOverview    {...tabProps} />}
         {tabProps && tab === "personal"    && <TabPersonal    {...tabProps} />}
         {tabProps && tab === "job"         && <TabJob         {...tabProps} />}

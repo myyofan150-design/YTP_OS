@@ -342,7 +342,7 @@ export default function LeadsPage() {
 
       {/* Stats row */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 animate-fade-up">
           <StatCard label="Total Leads"     value={stats.total} />
           <StatCard label="Converted"       value={stats.convertedCount} color="#22C55E" />
           <StatCard label="Lost"            value={stats.lostCount}      color="#EF4444" />
@@ -352,7 +352,7 @@ export default function LeadsPage() {
       )}
 
       {/* Toolbar */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between animate-fade-in delay-100">
         {/* Left: Search + Filters */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
@@ -539,14 +539,16 @@ export default function LeadsPage() {
           )}
         </div>
       ) : view === "kanban" ? (
-        <LeadKanbanBoard
-          leads={localLeads}
-          statuses={meta.statuses}
-          onLeadClick={openDetail}
-          onLeadsChange={setLocalLeads}
-        />
+        <div className="animate-fade-up delay-200">
+          <LeadKanbanBoard
+            leads={localLeads}
+            statuses={meta.statuses}
+            onLeadClick={openDetail}
+            onLeadsChange={setLocalLeads}
+          />
+        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-fade-up delay-200">
           {localLeads.map(lead => (
             <LeadCard key={lead.uuid} lead={lead} onClick={() => openDetail(lead)} />
           ))}

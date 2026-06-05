@@ -293,7 +293,14 @@ export function LeadDetailDialog({ open, uuid, onClose, onEdit, onConvert, onDel
                 <Row label="Country">{lead.country ?? "—"}</Row>
                 <Row label="City">{lead.city ?? "—"}</Row>
                 <Row label="Budget">
-                  {fmtBudget(lead.budgetMin)} – {fmtBudget(lead.budgetMax)}
+                  {lead.budgetMin != null && lead.budgetMax != null
+                    ? `${fmtBudget(lead.budgetMin)} – ${fmtBudget(lead.budgetMax)}`
+                    : lead.budgetMin != null
+                    ? `${fmtBudget(lead.budgetMin)}+`
+                    : lead.budgetMax != null
+                    ? `Up to ${fmtBudget(lead.budgetMax)}`
+                    : "—"
+                  }
                 </Row>
                 <Row label="Timeline">{fmtDate(lead.timeline)}</Row>
                 <Row label="Last Contacted">{fmtDate(lead.lastContacted)}</Row>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { Camera, Upload } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Camera, Upload, ShieldCheck, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -177,6 +177,52 @@ export default function ProfilePage() {
   const [pwdSuccess, setPwdSuccess] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
 
+  // 2FA state
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorLoading, setTwoFactorLoading] = useState(true);
+  const [showDisableForm,  setShowDisableForm]  = useState(false);
+  const [disablePassword,  setDisablePassword]  = useState("");
+  const [disableError,     setDisableError]     = useState("");
+  const [disableLoading,   setDisableLoading]   = useState(false);
+
+  useEffect(() => {
+    api.get("/auth/me")
+      .then(r => setTwoFactorEnabled(Boolean(r.data.data?.twoFactorEnabled)))
+      .catch(() => {})
+      .finally(() => setTwoFactorLoading(false));
+  }, []);
+
+  async function handleEnable2fa() {
+    setTwoFactorLoading(true);
+    try {
+      await api.patch("/auth/2fa/toggle", { enable: true });
+      setTwoFactorEnabled(true);
+      toast.success("Two-step verification enabled");
+    } catch (err: unknown) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to enable 2FA");
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  }
+
+  async function handleDisable2fa(e: { preventDefault(): void }) {
+    e.preventDefault();
+    setDisableError("");
+    if (!disablePassword) { setDisableError("Password is required"); return; }
+    setDisableLoading(true);
+    try {
+      await api.patch("/auth/2fa/toggle", { enable: false, password: disablePassword });
+      setTwoFactorEnabled(false);
+      setShowDisableForm(false);
+      setDisablePassword("");
+      toast.success("Two-step verification disabled");
+    } catch (err: unknown) {
+      setDisableError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to disable 2FA");
+    } finally {
+      setDisableLoading(false);
+    }
+  }
+
   function setPwd(field: string, value: string) {
     setPwdForm(prev => ({ ...prev, [field]: value }));
     setPwdError("");
@@ -338,6 +384,117 @@ export default function ProfilePage() {
             {pwdLoading ? "Updating…" : "Update Password"}
           </Button>
         </form>
+      </div>
+
+      {/* ── Two-Step Verification Card ── */}
+      <div className="animate-fade-up delay-200 rounded-2xl border border-border bg-card p-6">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+          Two-Step Verification
+        </p>
+
+        {twoFactorLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" />
+            Loading…
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Status row */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                {twoFactorEnabled ? (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10">
+                    <ShieldCheck size={18} className="text-emerald-500" />
+                  </div>
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
+                    <ShieldOff size={18} className="text-muted-foreground" />
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {twoFactorEnabled ? "Enabled" : "Disabled"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {twoFactorEnabled
+                      ? "A verification code will be sent to your email at each login."
+                      : "Add an extra layer of security to your account."}
+                  </p>
+                </div>
+              </div>
+
+              {twoFactorEnabled ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs shrink-0"
+                  onClick={() => { setShowDisableForm(v => !v); setDisableError(""); setDisablePassword(""); }}
+                >
+                  Disable
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  className="h-8 text-xs shrink-0 bg-primary hover:bg-primary/85 text-primary-foreground"
+                  onClick={handleEnable2fa}
+                  disabled={twoFactorLoading}
+                >
+                  {twoFactorLoading ? "Enabling…" : "Enable"}
+                </Button>
+              )}
+            </div>
+
+            {/* Inline disable form */}
+            {showDisableForm && (
+              <form
+                onSubmit={handleDisable2fa}
+                className="rounded-xl border border-border p-4 space-y-3"
+                style={{ background: "rgba(239,68,68,0.04)", borderColor: "rgba(239,68,68,0.15)" }}
+              >
+                <p className="text-xs text-muted-foreground">
+                  Confirm your password to disable two-step verification.
+                </p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="disable-pwd" className="text-xs font-medium text-foreground">
+                    Current password
+                  </Label>
+                  <Input
+                    id="disable-pwd"
+                    type="password"
+                    value={disablePassword}
+                    onChange={(e) => { setDisablePassword(e.target.value); setDisableError(""); }}
+                    placeholder="••••••••"
+                    required
+                    className="h-9 text-sm max-w-sm"
+                  />
+                </div>
+                {disableError && (
+                  <p className="text-xs text-red-500">{disableError}</p>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="destructive"
+                    className="h-8 text-xs"
+                    disabled={disableLoading}
+                  >
+                    {disableLoading ? "Disabling…" : "Confirm Disable"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => { setShowDisableForm(false); setDisableError(""); setDisablePassword(""); }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Globe, MessageCircle, Calendar, Phone, Mail, Pencil, Check, X } from "lucide-react";
+import { Globe, MessageCircle, Calendar, Phone, Mail, Pencil, Check, X, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { resolveAssetUrl } from "@/lib/utils";
@@ -194,11 +194,31 @@ export default function ClientDetailPage() {
   const [client, setClient]     = useState<ClientDetail | null>(null);
   const [loading, setLoading]   = useState(true);
   const [tab, setTab]           = useState<Tab>("Overview");
-  const [editOpen, setEditOpen] = useState(false);
-  const [trackOpen, setTrackOpen] = useState(false);
+  const [editOpen, setEditOpen]       = useState(false);
+  const [trackOpen, setTrackOpen]     = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const canEdit    = CAN_EDIT.includes(user?.role ?? "");
   const canCreds   = CAN_CREDS.includes(user?.role ?? "");
+
+  async function handleExportPdf() {
+    if (!client) return;
+    setExportingPdf(true);
+    try {
+      const res = await api.get(`/clients/${uuid}/pdf`, { responseType: "blob" });
+      const blobUrl = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `${(client.companyName ?? client.contactPerson).replace(/[^a-zA-Z0-9]/g, "-")}-profile.pdf`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+      toast.success("PDF exported");
+    } catch {
+      toast.error("Failed to export PDF");
+    } finally {
+      setExportingPdf(false);
+    }
+  }
 
   const fetchClient = useCallback(async () => {
     try {
@@ -253,7 +273,7 @@ export default function ClientDetailPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 animate-fade-in">
         <div>
           <button onClick={() => router.back()} className="text-slate-400 hover:text-slate-600 text-sm">← Clients</button>
           <div className="mt-2 flex items-center gap-3">
@@ -284,17 +304,29 @@ export default function ClientDetailPage() {
             )}
           </div>
         </div>
-        {canEdit && (
-          <Button onClick={() => setEditOpen(true)} className="h-9 text-sm bg-[#0F172A] hover:bg-slate-700 text-white shrink-0">
-            Edit Client
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPdf}
+            disabled={exportingPdf}
+            className="h-9 text-sm"
+          >
+            <FileDown size={15} className="mr-1.5" />
+            {exportingPdf ? "Exporting…" : "Export PDF"}
           </Button>
-        )}
+          {canEdit && (
+            <Button onClick={() => setEditOpen(true)} className="h-9 text-sm bg-[#0F172A] hover:bg-slate-700 text-white">
+              Edit Client
+            </Button>
+          )}
+        </div>
       </div>
 
       <RenewalAlert days={client.daysUntilRenewal} />
 
       {/* Tabs */}
-      <div className="border-b border-slate-200">
+      <div className="border-b border-slate-200 animate-fade-up delay-100">
         <nav className="flex gap-0 overflow-x-auto">
           {TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}

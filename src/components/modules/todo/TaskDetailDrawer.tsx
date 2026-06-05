@@ -11,19 +11,8 @@ import api from "@/lib/api";
 import { resolveAssetUrl } from "@/lib/utils";
 import { useTodoTask, useTodoLists } from "@/hooks/useTodo";
 import { RichTextEditor } from "@/components/shared/RichTextEditor";
-import { BG_COLOR_OPTIONS } from "./TaskBgColor";
 import { DueDateChip } from "./DueDateChip";
-import type { TodoSubtask, TodoAttachment, ApiResponse } from "@/types";
-
-// ── Avatar helpers ─────────────────────────────────────────────────────────────
-
-const AVATAR_COLORS = ["bg-orange-400","bg-teal-500","bg-purple-500","bg-blue-500","bg-pink-400","bg-amber-500","bg-cyan-500","bg-rose-400"];
-function nameColor(name: string) {
-  return AVATAR_COLORS[name.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length];
-}
-function initials(name: string) {
-  return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-}
+import type { TodoSubtask, TodoAttachment } from "@/types";
 
 // ── Priority chip colors ───────────────────────────────────────────────────────
 
@@ -63,48 +52,10 @@ export function TaskDetailDrawer({ taskUuid, onClose, onUpdate }: Props) {
   const [reminderMode, setReminderMode] = useState<"hidden" | "quick" | "custom">("hidden");
   const [customReminder, setCustomReminder] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const dueDateRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading]     = useState(false);
   const [duplicating, setDuplicating] = useState(false);
 
-  // Member picker
-  const [users, setUsers] = useState<Array<{id:number;name:string;avatarUrl?:string|null}>>([]);
-  const [memberPickerOpen, setMemberPickerOpen] = useState(false);
-  const memberPickerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    api.get<ApiResponse<Array<{id:number;name:string;avatarUrl?:string|null}>>>("/users", { params: { status: "ACTIVE" } })
-      .then(r => setUsers(r.data.data)).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    function onOutside(e: MouseEvent) {
-      if (memberPickerRef.current && !memberPickerRef.current.contains(e.target as Node))
-        setMemberPickerOpen(false);
-    }
-    document.addEventListener("mousedown", onOutside);
-    return () => document.removeEventListener("mousedown", onOutside);
-  }, []);
-
-  function currentMembers() {
-    if (task?.members && task.members.length > 0) return task.members;
-    if (task?.assignedTo) {
-      const u = users.find(u => u.id === task.assignedTo);
-      return u ? [u] : [];
-    }
-    return [];
-  }
-
-  async function addMember(userId: number) {
-    setMemberPickerOpen(false);
-    const current = currentMembers().map(m => m.id);
-    if (current.includes(userId)) return;
-    await save({ memberIds: [...current, userId] }, "members");
-  }
-
-  async function removeMember(userId: number) {
-    const next = currentMembers().map(m => m.id).filter(id => id !== userId);
-    await save({ memberIds: next }, "members");
-  }
 
   useEffect(() => {
     if (task) { setTitleVal(task.title); setDescVal(task.description ?? ""); setNoteHtml(task.note ?? ""); }
@@ -231,8 +182,6 @@ export function TaskDetailDrawer({ taskUuid, onClose, onUpdate }: Props) {
   }
 
   if (!taskUuid) return null;
-
-  const members = currentMembers();
 
   return (
     <>
@@ -367,13 +316,25 @@ export function TaskDetailDrawer({ taskUuid, onClose, onUpdate }: Props) {
                 </div>
 
                 {/* Due Date */}
-                <label className={`relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-all
-                  ${task.dueDate ? "border-amber-500/25 bg-amber-500/10 text-amber-600" : "border-border/70 bg-muted/40 text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>
-                  <Calendar size={11} />
-                  {task.dueDate ? fmtDate(task.dueDate) : "Due date"}
-                  {task.dueDate && <DueDateChip date={task.dueDate} showIcon={false} />}
-                  <input type="date" value={task.dueDate ?? ""} onChange={e => save({ dueDate: e.target.value || null }, "dueDate")} className="sr-only" />
-                </label>
+                <div className="relative inline-flex">
+                  <button
+                    type="button"
+                    onClick={() => { try { dueDateRef.current?.showPicker(); } catch { dueDateRef.current?.click(); } }}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-all
+                      ${task.dueDate ? "border-amber-500/25 bg-amber-500/10 text-amber-600" : "border-border/70 bg-muted/40 text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}
+                  >
+                    <Calendar size={11} />
+                    {task.dueDate ? fmtDate(task.dueDate) : "Due date"}
+                    {task.dueDate && <DueDateChip date={task.dueDate} showIcon={false} />}
+                  </button>
+                  <input
+                    ref={dueDateRef}
+                    type="date"
+                    value={task.dueDate ?? ""}
+                    onChange={e => save({ dueDate: e.target.value || null }, "dueDate")}
+                    className="sr-only"
+                  />
+                </div>
 
                 {/* List */}
                 <div className="relative inline-flex">
@@ -383,7 +344,12 @@ export function TaskDetailDrawer({ taskUuid, onClose, onUpdate }: Props) {
                     className="appearance-none pl-2.5 pr-5 py-1.5 rounded-full text-xs font-medium cursor-pointer outline-none border border-border/70 bg-muted/40 text-foreground hover:border-primary/40 transition-all"
                   >
                     {task.listName && <option value={task.listUuid ?? ""}>{task.listName}</option>}
-                    {lists.filter(l => l.uuid !== task.listUuid).map(l => <option key={l.uuid} value={l.uuid}>{l.name}</option>)}
+                    {(() => {
+                      const currentList = lists.find(l => l.uuid === task.listUuid);
+                      return lists
+                        .filter(l => l.uuid !== task.listUuid && (currentList?.groupId ? l.groupId === currentList.groupId : false))
+                        .map(l => <option key={l.uuid} value={l.uuid}>{l.name}</option>);
+                    })()}
                   </select>
                   <ChevronDown size={9} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
                 </div>
@@ -405,107 +371,6 @@ export function TaskDetailDrawer({ taskUuid, onClose, onUpdate }: Props) {
                   <ChevronDown size={9} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
                 </div>
 
-                {/* Color swatches */}
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-border/70 bg-muted/40">
-                  {BG_COLOR_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => save({ bgColor: opt.value }, "bgColor")}
-                      title={opt.label}
-                      className="w-3.5 h-3.5 rounded-full border-2 transition-all hover:scale-125"
-                      style={{ background: opt.hex === "transparent" ? "var(--bg-elevated)" : opt.hex, borderColor: task.bgColor === opt.value ? "var(--accent)" : "transparent" }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* ── Assignees ── */}
-              <div>
-                <SectionLabel>Assigned To</SectionLabel>
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  {members.length > 0 && (
-                    <div className="flex -space-x-2">
-                      {members.slice(0, 5).map(m => {
-                        const photoSrc = resolveAssetUrl(m.avatarUrl);
-                        return (
-                          <div
-                            key={m.id}
-                            title={m.name}
-                            className={`relative w-8 h-8 rounded-full ring-2 ring-card flex items-center justify-center text-[10px] font-bold text-white shrink-0 cursor-pointer group/av ${!photoSrc ? nameColor(m.name) : ""}`}
-                          >
-                            {photoSrc
-                              ? <img src={photoSrc} alt={m.name} className="w-full h-full rounded-full object-cover" />
-                              : initials(m.name)
-                            }
-                            <button
-                              onClick={() => removeMember(m.id)}
-                              className="absolute inset-0 rounded-full bg-red-500/80 text-white opacity-0 group-hover/av:opacity-100 transition-opacity flex items-center justify-center"
-                            >
-                              <X size={9} />
-                            </button>
-                          </div>
-                        );
-                      })}
-                      {members.length > 5 && (
-                        <div className="w-8 h-8 rounded-full ring-2 ring-card bg-muted text-muted-foreground flex items-center justify-center text-[10px] font-bold shrink-0">
-                          +{members.length - 5}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="relative" ref={memberPickerRef}>
-                    <button
-                      onClick={() => setMemberPickerOpen(v => !v)}
-                      className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium border transition-all
-                        ${members.length === 0
-                          ? "border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5"
-                          : "border-border/70 bg-muted/40 text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}
-                    >
-                      <Plus size={11} />
-                      {members.length === 0 ? "Assign to…" : "Add"}
-                    </button>
-
-                    {memberPickerOpen && (
-                      <div className="absolute left-0 top-10 z-50 w-60 rounded-xl border border-border bg-card shadow-2xl overflow-hidden">
-                        <div className="px-3 py-2.5" style={{ borderBottom: "1px solid var(--border)" }}>
-                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Assign to</p>
-                        </div>
-                        <div className="py-1 max-h-52 overflow-y-auto">
-                          {users.filter(u => !members.some(m => m.id === u.id)).length === 0 ? (
-                            <p className="px-3 py-3 text-xs text-muted-foreground text-center">All members assigned</p>
-                          ) : (
-                            users.filter(u => !members.some(m => m.id === u.id)).map(u => {
-                              const photoSrc = resolveAssetUrl(u.avatarUrl);
-                              return (
-                                <button
-                                  key={u.id}
-                                  type="button"
-                                  onClick={() => addMember(u.id)}
-                                  className="flex items-center gap-2.5 w-full px-3 py-2 hover:bg-muted/60 text-left transition-colors"
-                                >
-                                  {photoSrc
-                                    ? <img src={photoSrc} alt={u.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
-                                    : <span className={`w-7 h-7 rounded-full ${nameColor(u.name)} text-white flex items-center justify-center text-[10px] font-bold shrink-0`}>{initials(u.name)}</span>
-                                  }
-                                  <span className="text-sm font-medium text-foreground truncate">{u.name}</span>
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {members.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {members.map(m => (
-                        <span key={m.id} className="text-xs text-muted-foreground">{m.name}{members.indexOf(m) < members.length - 1 ? "," : ""}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
 
               {/* ── Reminder ── */}

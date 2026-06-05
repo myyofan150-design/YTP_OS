@@ -171,6 +171,7 @@ export function useTodoList(uuid: string | null) {
 
   async function createTask(data: {
     title: string;
+    stage?: string;
     priority?: string;
     dueDate?: string | null;
     assignedTo?: number | null;
@@ -311,22 +312,24 @@ export function useTodoListMembers(listUuid: string | null) {
 
 // ─── useSmartView ──────────────────────────────────────────────────────────────
 
-export function useSmartView(view: SmartViewType | null) {
+export function useSmartView(view: SmartViewType | null, params?: Record<string, unknown>) {
   const [tasks, setTasks]     = useState<TodoTask[]>([]);
   const [loading, setLoading] = useState(false);
+  const paramsKey = JSON.stringify(params ?? {});
 
   const refetch = useCallback(async () => {
     if (!view) return;
     setLoading(true);
     try {
-      const r = await api.get<ApiResponse<TodoTask[]>>(`/todo/smart/${view}`);
+      const r = await api.get<ApiResponse<TodoTask[]>>(`/todo/smart/${view}`, { params: params ?? {} });
       setTasks(r.data.data);
     } catch {
       toast.error("Failed to load view");
     } finally {
       setLoading(false);
     }
-  }, [view]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, paramsKey]);
 
   useEffect(() => { refetch(); }, [refetch]);
 

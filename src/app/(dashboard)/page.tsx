@@ -10,11 +10,12 @@ import {
 } from "recharts";
 import {
   Users, UserCheck, CheckSquare, FileText, DollarSign,
-  CalendarClock, Loader2, TrendingUp, Clock, AlertCircle, CreditCard,
+  CalendarClock, Loader2, TrendingUp, AlertCircle, CreditCard, ListTodo,
 } from "lucide-react";
 import { SubscriptionDashboardWidgets } from "@/components/modules/subscriptions/SubscriptionDashboardWidgets";
 import { EmployeeDashboardWidgets } from "@/components/modules/employees/EmployeeDashboardWidgets";
 import { Badge } from "@/components/ui/badge";
+import EmployeeSelfPortal from "@/app/(dashboard)/my-profile/page";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,6 +23,7 @@ interface DashStats {
   clients:   { total: number; active: number; prospect: number };
   employees: { total: number; active: number };
   tasks:     { total: number; todo: number; inProgress: number; done: number };
+  todos:     { total: number; pending: number; completed: number };
   invoices:  { thisMonthTotal: number; paid: number; pending: number; overdue: number };
   payroll:   { thisMonth: number; paid: number; draft: number };
   renewals:  { count: number; list: { id: number; uuid: string; companyName: string; contractEnd: string }[] };
@@ -29,7 +31,6 @@ interface DashStats {
 
 interface RevenuePoint { month: string; amount: number }
 interface TaskPoint    { status: string; count: number }
-interface AttSummary   { present: number; halfDay: number; onLeave: number; absent: number; total: number }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -161,7 +162,6 @@ export default function DashboardPage() {
   const [stats, setStats]     = useState<DashStats | null>(null);
   const [revenue, setRevenue] = useState<RevenuePoint[]>([]);
   const [taskChart, setTC]    = useState<TaskPoint[]>([]);
-  const [att, setAtt]         = useState<AttSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -171,7 +171,6 @@ export default function DashboardPage() {
       if (isAdmin)   promises.push(api.get("/dashboard/stats").then(r => setStats(r.data.data)).catch(() => {}));
       if (isFinance) promises.push(api.get("/dashboard/revenue-chart").then(r => setRevenue(r.data.data)).catch(() => {}));
       promises.push(api.get("/dashboard/task-chart").then(r => setTC(r.data.data)).catch(() => {}));
-      if (isHR)      promises.push(api.get("/dashboard/attendance-summary").then(r => setAtt(r.data.data)).catch(() => {}));
       await Promise.all(promises);
     } finally {
       setLoading(false);
@@ -182,11 +181,15 @@ export default function DashboardPage() {
 
   if (!user) return null;
 
-  // EMPLOYEE / TEAM_LEAD view
-  if (user.role === "EMPLOYEE" || user.role === "TEAM_LEAD") {
+  // EMPLOYEE view — full self-service portal
+  if (user.role === "EMPLOYEE") {
+    return <EmployeeSelfPortal />;
+  }
+
+  // TEAM_LEAD view — welcome + tasks only
+  if (user.role === "TEAM_LEAD") {
     return (
       <div className="space-y-6">
-        {/* Welcome banner */}
         <div
           className="animate-fade-up relative overflow-hidden rounded-2xl px-6 py-6"
           style={{ background: "linear-gradient(135deg, #0B1437 0%, #1A2035 60%, #0D1B2A 100%)" }}
@@ -359,9 +362,9 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Bottom row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {stats && stats.renewals.list.length > 0 && (
+      {/* Renewals row */}
+      {stats && stats.renewals.list.length > 0 && (
+        <div className="grid grid-cols-1 gap-6">
           <ChartCard
             delay={400}
             title="Renewals Due Soon"
@@ -387,36 +390,103 @@ export default function DashboardPage() {
               })}
             </ul>
           </ChartCard>
-        )}
+        </div>
+      )}
 
-        {isHR && att && (
+      {/* Todo & Task metrics — 2 columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {stats && (
           <ChartCard
             delay={500}
-            title="Today's Attendance"
-            icon={<Clock className="h-4 w-4 text-emerald-500" />}
+            title="Todo Metrics"
+            icon={<ListTodo className="h-4 w-4 text-violet-500" />}
           >
-            <div className="grid grid-cols-4 gap-3 mb-4">
-              {[
-                { label: "Present",  value: att.present,  color: "#22c55e", bg: "rgba(34,197,94,.1)" },
-                { label: "Half Day", value: att.halfDay,  color: "#f59e0b", bg: "rgba(245,158,11,.1)" },
-                { label: "On Leave", value: att.onLeave,  color: "#3b82f6", bg: "rgba(59,130,246,.1)" },
-                { label: "Absent",   value: att.absent,   color: "#ef4444", bg: "rgba(239,68,68,.1)" },
-              ].map(({ label, value, color, bg }) => (
-                <div key={label} className="rounded-xl p-3 text-center" style={{ background: bg }}>
-                  <p className="text-xl font-bold" style={{ color }}>{value}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-amber-400" />
+                  <span className="text-sm text-muted-foreground">Pending</span>
                 </div>
-              ))}
+                <span className="text-xl font-bold text-amber-500">{stats.todos.pending}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  <span className="text-sm text-muted-foreground">Completed</span>
+                </div>
+                <span className="text-xl font-bold text-emerald-500">{stats.todos.completed}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                  <span className="text-sm text-muted-foreground">Total</span>
+                </div>
+                <span className="text-xl font-bold">{stats.todos.total}</span>
+              </div>
             </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden flex">
-              {att.total > 0 && <>
-                <div className="bg-emerald-400 transition-all" style={{ width: `${(att.present/att.total)*100}%` }} />
-                <div className="bg-amber-400 transition-all"  style={{ width: `${(att.halfDay/att.total)*100}%` }} />
-                <div className="bg-blue-400 transition-all"   style={{ width: `${(att.onLeave/att.total)*100}%` }} />
-                <div className="bg-red-400 transition-all"    style={{ width: `${(att.absent/att.total)*100}%` }} />
-              </>}
+            {stats.todos.total > 0 && (
+              <>
+                <div className="mt-4 h-2 rounded-full bg-muted overflow-hidden flex">
+                  <div className="bg-amber-400 transition-all" style={{ width: `${(stats.todos.pending / stats.todos.total) * 100}%` }} />
+                  <div className="bg-emerald-400 transition-all" style={{ width: `${(stats.todos.completed / stats.todos.total) * 100}%` }} />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  {Math.round((stats.todos.completed / stats.todos.total) * 100)}% completed
+                </p>
+              </>
+            )}
+          </ChartCard>
+        )}
+
+        {stats && (
+          <ChartCard
+            delay={600}
+            title="Task Metrics"
+            icon={<CheckSquare className="h-4 w-4 text-amber-500" />}
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-amber-400" />
+                  <span className="text-sm text-muted-foreground">To Do</span>
+                </div>
+                <span className="text-xl font-bold text-amber-500">{stats.tasks.todo}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-blue-400" />
+                  <span className="text-sm text-muted-foreground">In Progress</span>
+                </div>
+                <span className="text-xl font-bold text-blue-500">{stats.tasks.inProgress}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  <span className="text-sm text-muted-foreground">Done</span>
+                </div>
+                <span className="text-xl font-bold text-emerald-500">{stats.tasks.done}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                  <span className="text-sm text-muted-foreground">Total</span>
+                </div>
+                <span className="text-xl font-bold">{stats.tasks.total}</span>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground/60 mt-1.5 text-right">{att.total} active employees</p>
+            {stats.tasks.total > 0 && (
+              <>
+                <div className="mt-4 h-2 rounded-full bg-muted overflow-hidden flex">
+                  <div className="bg-amber-400 transition-all" style={{ width: `${(stats.tasks.todo / stats.tasks.total) * 100}%` }} />
+                  <div className="bg-blue-400 transition-all"   style={{ width: `${(stats.tasks.inProgress / stats.tasks.total) * 100}%` }} />
+                  <div className="bg-emerald-400 transition-all" style={{ width: `${(stats.tasks.done / stats.tasks.total) * 100}%` }} />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  {Math.round((stats.tasks.done / stats.tasks.total) * 100)}% complete
+                </p>
+              </>
+            )}
           </ChartCard>
         )}
       </div>

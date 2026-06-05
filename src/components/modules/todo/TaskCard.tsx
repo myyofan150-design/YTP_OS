@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   CheckCircle2, Circle, Star, MoreHorizontal,
   Trash2, Bell, Flag, Calendar, Plus, Paperclip, Clock, Copy, AlarmClock,
@@ -77,6 +78,15 @@ interface Props {
 
 export function TaskCard({ task, onUpdate, onOpen, isDragging, showListName }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setMenuOpen(false); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
 
   const done         = task.status === "completed";
   const subtaskCount = task.subtaskCount   ?? 0;
@@ -160,8 +170,8 @@ export function TaskCard({ task, onUpdate, onOpen, isDragging, showListName }: P
         />
       )}
 
-      {/* Top row */}
-      <div className="flex items-start justify-between px-3.5 pt-3 pb-0">
+      {/* Top row: checkbox + title + actions */}
+      <div className="flex items-start gap-2.5 px-3.5 pt-3 pb-2.5">
         <button
           onClick={handleToggle}
           className="shrink-0 mt-0.5 transition-all duration-150 hover:scale-110"
@@ -172,7 +182,19 @@ export function TaskCard({ task, onUpdate, onOpen, isDragging, showListName }: P
           }
         </button>
 
-        <div className="flex items-center gap-0.5 -mt-0.5">
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-medium leading-snug line-clamp-2 tracking-[-0.01em]
+            ${done ? "line-through text-muted-foreground/60" : "text-foreground"}`}>
+            {task.title}
+          </p>
+          {task.description && !done && (
+            <p className="text-[11px] text-muted-foreground/60 mt-0.5 line-clamp-1 leading-relaxed">
+              {task.description}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-0.5 shrink-0 -mt-0.5">
           <button
             onClick={e => { e.stopPropagation(); handleFavorite(e); }}
             className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all hover:bg-muted/60
@@ -186,16 +208,27 @@ export function TaskCard({ task, onUpdate, onOpen, isDragging, showListName }: P
 
           <div className="relative">
             <button
-              onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
+              ref={btnRef}
+              onClick={e => {
+                e.stopPropagation();
+                if (btnRef.current) {
+                  const r = btnRef.current.getBoundingClientRect();
+                  setMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+                }
+                setMenuOpen(v => !v);
+              }}
               className="w-7 h-7 flex items-center justify-center rounded-lg transition-all hover:bg-muted/60 opacity-0 group-hover:opacity-100"
             >
               <MoreHorizontal size={13} className="text-muted-foreground" />
             </button>
 
-            {menuOpen && (
+            {menuOpen && typeof document !== "undefined" && createPortal(
               <>
-                <div className="fixed inset-0 z-40" onClick={e => { e.stopPropagation(); setMenuOpen(false); }} />
-                <div className="absolute right-0 top-8 z-50 min-w-[170px] rounded-xl border border-border bg-card shadow-2xl shadow-black/20 py-1.5 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[9998]" onClick={e => { e.stopPropagation(); setMenuOpen(false); }} />
+                <div
+                  className="fixed z-[9999] min-w-[170px] rounded-xl border border-border bg-card shadow-2xl shadow-black/20 py-1.5 backdrop-blur-sm"
+                  style={{ top: menuPos.top, right: menuPos.right }}
+                >
                   <CtxBtn icon={<Flag     size={12} />} label="Set Priority"  onClick={e => { e.stopPropagation(); setMenuOpen(false); onOpen(); }} />
                   <CtxBtn icon={<Calendar size={12} />} label="Set Due Date"  onClick={e => { e.stopPropagation(); setMenuOpen(false); onOpen(); }} />
                   <CtxBtn icon={<Bell     size={12} />} label="Set Reminder"  onClick={e => { e.stopPropagation(); setMenuOpen(false); onOpen(); }} />
@@ -203,84 +236,33 @@ export function TaskCard({ task, onUpdate, onOpen, isDragging, showListName }: P
                   <div className="my-1.5 mx-3 border-t border-border/60" />
                   <CtxBtn icon={<Trash2   size={12} />} label="Delete Task"   onClick={handleDelete} danger />
                 </div>
-              </>
+              </>,
+              document.body
             )}
           </div>
         </div>
       </div>
 
-      {/* Title */}
-      <div className="px-3.5 pt-1.5 pb-2.5">
-        <p className={`text-sm font-semibold leading-snug line-clamp-2 tracking-[-0.01em]
-          ${done ? "line-through text-muted-foreground/60" : "text-foreground"}`}>
-          {task.title}
-        </p>
-        {task.description && !done && (
-          <p className="text-[11px] text-muted-foreground/60 mt-0.5 line-clamp-1 leading-relaxed">
-            {task.description}
-          </p>
-        )}
-      </div>
-
-      {/* List badge */}
-      {showListName && task.listName && (
-        <div className="px-3.5 pb-2">
-          <span
-            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-            style={{ background: `${task.listColor ?? "#6366F1"}18`, color: task.listColor ?? "#6366F1" }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: task.listColor ?? "#6366F1" }} />
-            {task.listName}
-          </span>
-        </div>
-      )}
-
-      {/* Priority chip (only in smart-view / list-view context — hidden in kanban since column gives context) */}
-      {showListName && task.priority !== "none" && !done && (
-        <div className="px-3.5 pb-2">
-          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide border ${cfg.chip}`}>
-            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: cfg.accent }} />
-            {cfg.label}
-          </span>
-        </div>
-      )}
-
-      {/* Member avatars */}
-      {members.length > 0 && (
-        <div className="px-3.5 pb-2.5 flex items-center gap-2">
-          <div className="flex -space-x-1.5">
-            {members.slice(0, 4).map(m => {
-              const photoSrc = resolveAssetUrl(m.avatarUrl);
-              return photoSrc
-                ? <img
-                    key={m.id} src={photoSrc} alt={m.name} title={m.name}
-                    className="w-5 h-5 rounded-full ring-[2px] ring-card object-cover"
-                  />
-                : <span
-                    key={m.id} title={m.name}
-                    className="w-5 h-5 rounded-full ring-[2px] ring-card flex items-center justify-center text-[8px] font-bold text-white shrink-0"
-                    style={{ background: nameColor(m.name) }}
-                  >
-                    {initials(m.name)}
-                  </span>;
-            })}
-          </div>
-          {members.length > 4 && (
-            <span className="text-[10px] text-muted-foreground font-medium">+{members.length - 4}</span>
+      {/* Meta row: list · priority · date · subtasks · attachments · avatars */}
+      {(showListName && task.listName) || (showListName && task.priority !== "none" && !done) || members.length > 0 || task.dueDate || subtaskCount > 0 || attachCount > 0 ? (
+        <div className="flex items-center gap-2 px-3.5 pb-3 pt-1 flex-wrap">
+          {showListName && task.listName && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+              style={{ background: `${task.listColor ?? "#6366F1"}18`, color: task.listColor ?? "#6366F1" }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: task.listColor ?? "#6366F1" }} />
+              {task.listName}
+            </span>
           )}
-          <button
-            onClick={e => { e.stopPropagation(); onOpen(); }}
-            className="w-5 h-5 rounded-full border border-dashed border-border flex items-center justify-center
-              opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all hover:border-primary/60 hover:bg-primary/5"
-          >
-            <Plus size={9} className="text-muted-foreground" />
-          </button>
-        </div>
-      )}
 
-      {/* Footer: due · subtasks · attachments */}
-      {(task.dueDate || subtaskCount > 0 || attachCount > 0) && (
-        <div className="flex items-center gap-1.5 px-3.5 pb-3 pt-1 flex-wrap">
+          {showListName && task.priority !== "none" && !done && (
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide border ${cfg.chip}`}>
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: cfg.accent }} />
+              {cfg.label}
+            </span>
+          )}
+
           {task.dueDate && dm && (
             <span
               className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
@@ -304,8 +286,40 @@ export function TaskCard({ task, onUpdate, onOpen, isDragging, showListName }: P
               {attachCount}
             </span>
           )}
+
+          {members.length > 0 && (
+            <>
+              <div className="flex -space-x-1.5">
+                {members.slice(0, 4).map(m => {
+                  const photoSrc = resolveAssetUrl(m.avatarUrl);
+                  return photoSrc
+                    ? <img
+                        key={m.id} src={photoSrc} alt={m.name} title={m.name}
+                        className="w-5 h-5 rounded-full ring-[2px] ring-card object-cover"
+                      />
+                    : <span
+                        key={m.id} title={m.name}
+                        className="w-5 h-5 rounded-full ring-[2px] ring-card flex items-center justify-center text-[8px] font-bold text-white shrink-0"
+                        style={{ background: nameColor(m.name) }}
+                      >
+                        {initials(m.name)}
+                      </span>;
+                })}
+              </div>
+              {members.length > 4 && (
+                <span className="text-[10px] text-muted-foreground font-medium">+{members.length - 4}</span>
+              )}
+              <button
+                onClick={e => { e.stopPropagation(); onOpen(); }}
+                className="w-5 h-5 rounded-full border border-dashed border-border flex items-center justify-center
+                  opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all hover:border-primary/60 hover:bg-primary/5"
+              >
+                <Plus size={9} className="text-muted-foreground" />
+              </button>
+            </>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

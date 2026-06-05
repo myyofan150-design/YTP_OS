@@ -94,16 +94,16 @@ function initials(name: string) {
   return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
-function dueMeta(iso: string, done: boolean): { label: string; color: string; bg: string; icon: "alarm" | "clock" | null } {
-  if (done) return { label: new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }), color: "var(--muted-foreground)", bg: "rgba(255,255,255,0.04)", icon: null };
+function dueMeta(iso: string, done: boolean): { label: string; color: string; bg: string; border: string; icon: "alarm" | "clock" | null } {
+  if (done) return { label: new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }), color: "var(--muted-foreground)", bg: "transparent", border: "transparent", icon: null };
   const d = new Date(iso); d.setHours(0, 0, 0, 0);
   const t = new Date();    t.setHours(0, 0, 0, 0);
   const diff = Math.ceil((d.getTime() - t.getTime()) / 86_400_000);
   const label = diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : diff === -1 ? "Yesterday"
     : new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
-  if (diff < 0)  return { label, color: "#ef4444", bg: "rgba(239,68,68,0.12)",  icon: "alarm" };
-  if (diff <= 2) return { label, color: "#f59e0b", bg: "rgba(245,158,11,0.12)", icon: "clock" };
-  return { label, color: "var(--muted-foreground)", bg: "rgba(255,255,255,0.04)", icon: null };
+  if (diff < 0)  return { label, color: "#ef4444", bg: "rgba(239,68,68,0.15)", border: "rgba(239,68,68,0.40)", icon: "alarm" };
+  if (diff <= 2) return { label, color: "#f59e0b", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.30)", icon: "clock" };
+  return { label, color: "#6366f1", bg: "rgba(99,102,241,0.10)", border: "rgba(99,102,241,0.25)", icon: "clock" };
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -272,25 +272,6 @@ function KanbanCard({
             )}
           </div>
 
-          {/* Member avatars */}
-          {members.length > 0 && (
-            <div className="px-3.5 pb-2.5 flex items-center gap-2">
-              <div className="flex -space-x-2">
-                {members.slice(0, 4).map(m => (
-                  <UserAvatar key={m.id} name={m.name} url={m.avatarUrl} size="sm" />
-                ))}
-              </div>
-              {members.length > 4 && (
-                <span className="text-[10px] text-muted-foreground font-medium">+{members.length - 4}</span>
-              )}
-              {!isDone && (
-                <span className="text-[11px] text-muted-foreground/50 ml-0.5">
-                  {members[0].name.split(" ")[0]}{members.length > 1 ? ` +${members.length - 1}` : ""}
-                </span>
-              )}
-            </div>
-          )}
-
           {/* Subtask progress */}
           {subCount > 0 && (
             <div className="px-3.5 pb-2.5">
@@ -304,26 +285,50 @@ function KanbanCard({
             </div>
           )}
 
-          {/* Footer chips */}
-          {(dm || attachCount > 0 || commentCount > 0) && (
-            <div className="flex items-center gap-1.5 px-3.5 pb-3 pt-0 flex-wrap">
+          {/* Bottom row: avatars + meta on left · due date pinned right */}
+          {(members.length > 0 || dm || attachCount > 0 || commentCount > 0) && (
+            <div className="flex items-center justify-between px-3.5 pb-3 pt-0 gap-2">
+              {/* Left: avatars, counts */}
+              <div className="flex items-center gap-1.5 min-w-0">
+                {members.length > 0 && (
+                  <>
+                    <div className="flex -space-x-2">
+                      {members.slice(0, 4).map(m => (
+                        <UserAvatar key={m.id} name={m.name} url={m.avatarUrl} size="sm" />
+                      ))}
+                    </div>
+                    {members.length > 4 && (
+                      <span className="text-[10px] text-muted-foreground font-medium">+{members.length - 4}</span>
+                    )}
+                    {!isDone && (
+                      <span className="text-[11px] text-muted-foreground/50 truncate">
+                        {members[0].name.split(" ")[0]}{members.length > 1 ? ` +${members.length - 1}` : ""}
+                      </span>
+                    )}
+                  </>
+                )}
+
+                {attachCount > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted/50 text-muted-foreground">
+                    <Paperclip size={9} /> {attachCount}
+                  </span>
+                )}
+
+                {commentCount > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted/50 text-muted-foreground">
+                    <MessageCircle size={9} /> {commentCount}
+                  </span>
+                )}
+              </div>
+
+              {/* Right: due date */}
               {dm && (
                 <span
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                  style={{ background: dm.bg, color: dm.color }}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border shrink-0"
+                  style={{ background: dm.bg, color: dm.color, borderColor: dm.border }}
                 >
-                  {dm.icon === "alarm" ? <AlarmClock size={9} /> : dm.icon === "clock" ? <Clock size={9} /> : <Clock size={9} />}
+                  {dm.icon === "alarm" ? <AlarmClock size={9} /> : <Clock size={9} />}
                   {dm.label}
-                </span>
-              )}
-              {attachCount > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted/50 text-muted-foreground">
-                  <Paperclip size={9} /> {attachCount}
-                </span>
-              )}
-              {commentCount > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted/50 text-muted-foreground">
-                  <MessageCircle size={9} /> {commentCount}
                 </span>
               )}
             </div>
@@ -347,6 +352,7 @@ export default function TasksPage() {
   const [priorityFilter,  setPriority]        = useState("ALL");
   const [assigneeFilter,  setAssignee]        = useState("ALL");
   const [clientFilter,    setClient]          = useState(() => searchParams.get("clientId") ?? "ALL");
+  const [overdueFilter,   setOverdue]         = useState(false);
   const [addOpen,         setAddOpen]         = useState(false);
   const [addDefaultStatus, setAddDefaultStatus] = useState("TODO");
   const [detailUuid,      setDetailUuid]      = useState<string | null>(null);
@@ -367,11 +373,12 @@ export default function TasksPage() {
       if (priorityFilter !== "ALL") params["priority"]     = priorityFilter;
       if (assigneeFilter !== "ALL") params["assignedToId"] = assigneeFilter;
       if (clientFilter !== "ALL")   params["clientId"]     = clientFilter;
+      if (overdueFilter)            params["overdue"]      = "true";
       const res = await api.get<ApiResponse<Task[]>>("/tasks", { params });
       setTasks(res.data.data);
     } catch { setTasks([]); }
     finally { setLoading(false); }
-  }, [search, statusFilter, priorityFilter, assigneeFilter, clientFilter]);
+  }, [search, statusFilter, priorityFilter, assigneeFilter, clientFilter, overdueFilter]);
 
   useEffect(() => {
     const t = setTimeout(fetchTasks, search ? 350 : 0);
@@ -379,11 +386,11 @@ export default function TasksPage() {
   }, [fetchTasks, search]);
 
   useEffect(() => {
+    api.get<ApiResponse<Client[]>>("/clients")
+      .then(r => setClients(r.data.data)).catch(() => {});
     if (isAdmin) {
       api.get<ApiResponse<User[]>>("/users", { params: { status: "ACTIVE" } })
         .then(r => setUsers(r.data.data)).catch(() => {});
-      api.get<ApiResponse<Client[]>>("/clients")
-        .then(r => setClients(r.data.data)).catch(() => {});
     }
   }, [isAdmin]);
 
@@ -414,7 +421,7 @@ export default function TasksPage() {
 
   const selectedAssignee = users.find(u => String(u.id) === assigneeFilter);
 
-  const hasFilters = !!(search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || clientFilter !== "ALL");
+  const hasFilters = !!(search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || clientFilter !== "ALL" || overdueFilter);
 
   const doneCount    = tasks.filter(t => t.status === "DONE").length;
   const activeCount  = tasks.filter(t => t.status !== "DONE").length;
@@ -445,13 +452,15 @@ export default function TasksPage() {
           </div>
         </div>
 
-        <button
-          onClick={() => openAdd()}
-          className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-sm font-semibold text-white transition-all shadow-lg hover:opacity-90 active:scale-95"
-          style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", boxShadow: "0 4px 14px rgba(99,102,241,0.4)" }}
-        >
-          <Plus size={15} /> New Task
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => openAdd()}
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-sm font-semibold text-white transition-all shadow-lg hover:opacity-90 active:scale-95"
+            style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", boxShadow: "0 4px 14px rgba(99,102,241,0.4)" }}
+          >
+            <Plus size={15} /> New Task
+          </button>
+        )}
       </div>
 
       {/* ══════════════ FILTER BAR ══════════════ */}
@@ -474,11 +483,25 @@ export default function TasksPage() {
           )}
         </div>
 
+        {/* Status filter */}
+        <Select value={statusFilter} onValueChange={v => setStatus(v ?? "ALL")}>
+          <SelectTrigger className="h-9 w-[170px] text-xs rounded-xl border-border/50 bg-muted/30 gap-1.5">
+            <span className="text-muted-foreground shrink-0">Status:</span>
+            <SelectValue>{(v: string) => v && v !== "ALL" ? (COLUMNS.find(c => c.id === v)?.label ?? v) : "All"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent className="rounded-xl">
+            <SelectItem value="ALL" className="text-xs">All</SelectItem>
+            {COLUMNS.map(col => (
+              <SelectItem key={col.id} value={col.id} className="text-xs">{col.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         {/* Priority filter */}
         <Select value={priorityFilter} onValueChange={v => setPriority(v ?? "ALL")}>
           <SelectTrigger className="h-9 w-[170px] text-xs rounded-xl border-border/50 bg-muted/30 gap-1.5">
             <span className="text-muted-foreground shrink-0">Priority:</span>
-            <SelectValue placeholder="All" />
+            <SelectValue>{(v: string) => v && v !== "ALL" ? v.charAt(0) + v.slice(1).toLowerCase() : "All"}</SelectValue>
           </SelectTrigger>
           <SelectContent className="rounded-xl">
             <SelectItem value="ALL" className="text-xs">All</SelectItem>
@@ -488,12 +511,23 @@ export default function TasksPage() {
           </SelectContent>
         </Select>
 
+        {/* Overdue filter */}
+        <button
+          onClick={() => setOverdue(v => !v)}
+          className={`h-9 px-3 rounded-xl border text-xs font-medium transition-all flex items-center gap-1.5
+            ${overdueFilter
+              ? "bg-red-500/12 border-red-500/40 text-red-400 hover:bg-red-500/18"
+              : "border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:border-border"}`}
+        >
+          <AlarmClock size={13} /> Overdue
+        </button>
+
         {/* Client filter */}
-        {isAdmin && clients.length > 0 && (
+        {clients.length > 0 && (
           <Select value={clientFilter} onValueChange={v => setClient(v ?? "ALL")}>
             <SelectTrigger className="h-9 w-[180px] text-xs rounded-xl border-border/50 bg-muted/30">
               <span className="text-muted-foreground mr-1 shrink-0">Client:</span>
-              <SelectValue placeholder="All" />
+              <SelectValue>{(v: string) => v && v !== "ALL" ? (clients.find(c => String(c.id) === v)?.companyName ?? v) : "All"}</SelectValue>
             </SelectTrigger>
             <SelectContent className="rounded-xl">
               <SelectItem value="ALL" className="text-xs">All</SelectItem>
@@ -545,7 +579,7 @@ export default function TasksPage() {
         {/* Clear */}
         {hasFilters && (
           <button
-            onClick={() => { setSearch(""); setStatus("ALL"); setPriority("ALL"); setAssignee("ALL"); setClient("ALL"); }}
+            onClick={() => { setSearch(""); setStatus("ALL"); setPriority("ALL"); setAssignee("ALL"); setClient("ALL"); setOverdue(false); }}
             className="h-9 px-3 rounded-xl border border-border/50 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all flex items-center gap-1.5"
           >
             <X size={12} /> Clear
@@ -603,15 +637,17 @@ export default function TasksPage() {
                         </span>
                       )}
                     </div>
-                    <button
-                      onClick={() => openAdd(col.id)}
-                      className="w-6 h-6 rounded-lg flex items-center justify-center transition-colors"
-                      style={{ color: `${col.accent}99` }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${col.accent}15`; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                    >
-                      <Plus size={14} />
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => openAdd(col.id)}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center transition-colors"
+                        style={{ color: `${col.accent}99` }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = `${col.accent}15`; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                      >
+                        <Plus size={14} />
+                      </button>
+                    )}
                   </div>
 
                   {/* Drop zone */}
@@ -648,13 +684,15 @@ export default function TasksPage() {
                               <Icon size={18} style={{ color: `${col.accent}55` }} />
                             </div>
                             <p className="text-[11px] text-muted-foreground/40 text-center">No tasks here</p>
-                            <button
-                              onClick={() => openAdd(col.id)}
-                              className="text-[11px] font-medium px-3 py-1 rounded-full border border-dashed transition-all hover:opacity-80"
-                              style={{ color: `${col.accent}70`, borderColor: `${col.accent}30` }}
-                            >
-                              + Add task
-                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={() => openAdd(col.id)}
+                                className="text-[11px] font-medium px-3 py-1 rounded-full border border-dashed transition-all hover:opacity-80"
+                                style={{ color: `${col.accent}70`, borderColor: `${col.accent}30` }}
+                              >
+                                + Add task
+                              </button>
+                            )}
                           </div>
                         )}
 

@@ -194,15 +194,25 @@ export function SubscriptionDetailDialog({ open, onClose, uuid, onEdit, onDelete
               </div>
 
               {/* Price + countdown */}
-              <div className="flex items-center justify-between rounded-xl p-4" style={{ background: "var(--bg-elevated)" }}>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-secondary)" }}>Price</p>
-                  <p className="text-2xl font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>
-                    {fmtPrice(sub.price, sub.currency)}
-                    {sub.billingCycle && <span className="text-sm font-normal ml-1" style={{ color: "var(--text-secondary)" }}>/ {sub.billingCycle.label}</span>}
-                  </p>
+              <div className="rounded-xl p-4" style={{ background: "var(--bg-elevated)" }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-secondary)" }}>Price</p>
+                    <p className="text-2xl font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>
+                      {fmtPrice(sub.price, sub.currency)}
+                      {sub.billingCycle && <span className="text-sm font-normal ml-1" style={{ color: "var(--text-secondary)" }}>/ {sub.billingCycle.label}</span>}
+                    </p>
+                  </div>
+                  <DaysChip daysLeft={sub.daysLeft} />
                 </div>
-                <DaysChip daysLeft={sub.daysLeft} />
+                {sub.nextRenewalAmount != null && (
+                  <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: "1px solid var(--border)" }}>
+                    <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-secondary)" }}>Next Renewal Amount</p>
+                    <p className="text-base font-bold" style={{ color: "#F59E0B" }}>
+                      {fmtPrice(sub.nextRenewalAmount, sub.currency)}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Dates */}

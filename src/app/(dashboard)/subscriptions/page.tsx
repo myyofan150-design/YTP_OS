@@ -155,27 +155,28 @@ export default function SubscriptionsPage() {
   // ── Filter selects helper ─────────────────────────────────────────────────
 
   function FilterSelect({
-    value, onValueChange, placeholder, options,
+    label, value, onValueChange, placeholder = "All", width = "w-40", options,
   }: {
+    label: string;
     value: string;
     onValueChange: (v: string) => void;
-    placeholder: string;
+    placeholder?: string;
+    width?: string;
     options: { value: string; label: string; color?: string }[];
   }) {
     const selected = options.find(o => o.value === value);
     return (
       <Select value={value} onValueChange={v => onValueChange(v ?? "")}>
-        <SelectTrigger className="h-8 text-sm" style={{ minWidth: "130px" }}>
-          <span className="flex items-center gap-1.5 truncate">
+        <SelectTrigger className={`h-9 text-sm ${width}`}>
+          <span className="flex items-center gap-1 truncate min-w-0">
+            <span className="text-muted-foreground shrink-0">{label}:</span>
             {selected ? (
-              <>
-                {selected.color && (
-                  <span className="h-2 w-2 rounded-full shrink-0" style={{ background: selected.color }} />
-                )}
+              <span className="flex items-center gap-1 truncate">
+                {selected.color && <span className="h-2 w-2 rounded-full shrink-0" style={{ background: selected.color }} />}
                 <span className="truncate">{selected.label}</span>
-              </>
+              </span>
             ) : (
-              <span style={{ color: "var(--text-secondary)" }}>{placeholder}</span>
+              <span className="truncate">{placeholder}</span>
             )}
           </span>
         </SelectTrigger>
@@ -206,7 +207,7 @@ export default function SubscriptionsPage() {
     <div className="space-y-5">
 
       {/* ── Header ── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 no-print">
+      <div className="flex flex-wrap items-center justify-between gap-3 no-print animate-fade-in">
         <div>
           <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Subscription Tracker</h2>
           <p className="text-sm mt-0.5" style={{ color: "var(--text-secondary)" }}>
@@ -233,43 +234,42 @@ export default function SubscriptionsPage() {
       </div>
 
       {/* ── Search + Filters ── */}
-      <div className="flex flex-wrap items-center gap-2 no-print">
+      <div className="flex flex-wrap items-center gap-2 no-print animate-fade-in delay-100">
         <div className="relative">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-secondary)" }} />
           <Input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search subscriptions…"
-            className="h-8 text-sm pl-8"
-            style={{ minWidth: "220px" }}
+            className="h-9 text-sm pl-8 w-56"
           />
         </div>
 
         <FilterSelect
-          value={categoryId} onValueChange={setCategoryId} placeholder="All Categories"
+          label="Category" value={categoryId} onValueChange={setCategoryId}
           options={categories.map(c => ({ value: String(c.id), label: c.label, color: c.color }))}
         />
 
         <FilterSelect
-          value={statusId} onValueChange={setStatusId} placeholder="All Statuses"
+          label="Status" value={statusId} onValueChange={setStatusId}
           options={statuses.map(s => ({ value: String(s.id), label: s.label, color: s.color }))}
         />
 
         <FilterSelect
-          value={billingCycleId} onValueChange={setBillingCycleId} placeholder="All Billing Cycles"
+          label="Billing" value={billingCycleId} onValueChange={setBillingCycleId} width="w-44"
           options={billingCycles.map(b => ({ value: String(b.id), label: b.label, color: b.color }))}
         />
 
         <FilterSelect
-          value={autopayFilter} onValueChange={setAutopayFilter} placeholder="All Autopay"
+          label="Autopay" value={autopayFilter} onValueChange={setAutopayFilter}
           options={[
-            { value: "true",  label: "Autopay ON" },
+            { value: "true",  label: "ON" },
             { value: "false", label: "Manual" },
           ]}
         />
 
         <FilterSelect
-          value={planTierFilter} onValueChange={setPlanTierFilter} placeholder="All Tiers"
+          label="Tier" value={planTierFilter} onValueChange={setPlanTierFilter}
           options={[
             { value: "free",    label: "Free" },
             { value: "basic",   label: "Basic" },
@@ -280,7 +280,7 @@ export default function SubscriptionsPage() {
         />
 
         <FilterSelect
-          value={usageTypeFilter} onValueChange={setUsageTypeFilter} placeholder="All Usage"
+          label="Usage" value={usageTypeFilter} onValueChange={setUsageTypeFilter}
           options={[
             { value: "internal", label: "Internal" },
             { value: "client",   label: "Client Use" },
@@ -290,10 +290,9 @@ export default function SubscriptionsPage() {
         {anyFilter && (
           <button
             onClick={clearAllFilters}
-            className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs font-medium transition-all"
-            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+            className="flex items-center gap-1 h-9 px-3 rounded-lg text-sm border border-border text-muted-foreground hover:opacity-70 transition-opacity"
           >
-            <X size={12} /> Clear
+            <X size={13} /> Clear
           </button>
         )}
 
@@ -332,7 +331,7 @@ export default function SubscriptionsPage() {
       </div>
 
       {/* ── Content: Cards or Calendar ── */}
-      <div className="no-print">
+      <div className="no-print animate-fade-up delay-200">
         {view === "calendar" ? (
           <SubscriptionCalendar
             subs={allSubs}

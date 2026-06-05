@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   DragDropContext, Droppable, Draggable, DropResult,
+  type DraggableProvided, type DraggableStateSnapshot,
 } from "@hello-pangea/dnd";
 import { toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
@@ -105,6 +107,48 @@ function BlacklistConfirmDialog({
       </div>
     </div>
   );
+}
+
+// ─── Portal-aware draggable card ─────────────────────────────────────────────
+// Renders the dragging ghost as a direct child of document.body so it escapes
+// any scrollable ancestor or CSS transform containing-block, which would
+// otherwise make position:fixed drift away from the cursor.
+
+function DraggableCard({
+  drag,
+  dragSnap,
+  lead,
+  onLeadClick,
+}: {
+  drag:       DraggableProvided;
+  dragSnap:   DraggableStateSnapshot;
+  lead:       Lead;
+  onLeadClick: (lead: Lead) => void;
+}) {
+  const el = (
+    <div
+      ref={drag.innerRef}
+      {...drag.draggableProps}
+      {...drag.dragHandleProps}
+      className="shrink-0 w-[220px]"
+      style={{
+        ...drag.draggableProps.style,
+        opacity: dragSnap.isDragging ? 0.85 : 1,
+        transform: dragSnap.isDragging
+          ? `${drag.draggableProps.style?.transform ?? ""} rotate(1.5deg)`
+          : drag.draggableProps.style?.transform,
+        cursor: dragSnap.isDragging ? "grabbing" : "grab",
+      }}
+    >
+      <LeadCard lead={lead} onClick={() => onLeadClick(lead)} kanban />
+    </div>
+  );
+
+  // While dragging, portal to body — escapes scroll containers & transforms
+  if (dragSnap.isDragging && typeof document !== "undefined") {
+    return createPortal(el, document.body);
+  }
+  return el;
 }
 
 // ─── LeadKanbanBoard ──────────────────────────────────────────────────────────
@@ -253,52 +297,48 @@ export function LeadKanbanBoard({ leads, statuses, onLeadClick, onLeadsChange }:
                   )}
                 </div>
 
-                {/* Droppable horizontal row */}
-                <Droppable droppableId={String(col.status.id)} direction="horizontal">
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className="flex flex-row gap-2 rounded-xl p-2 min-h-[100px] overflow-x-auto transition-colors"
-                      style={{
-                        background: snapshot.isDraggingOver
-                          ? `${col.status.color}0A`
-                          : "var(--bg-elevated)",
-                        border: snapshot.isDraggingOver
-                          ? `1px solid ${col.status.color}40`
-                          : "1px solid var(--border)",
-                      }}
-                    >
-                      {col.leads.map((lead, index) => (
-                        <Draggable key={lead.uuid} draggableId={lead.uuid} index={index}>
-                          {(drag, dragSnap) => (
-                            <div
-                              ref={drag.innerRef}
-                              {...drag.draggableProps}
-                              {...drag.dragHandleProps}
-                              className="shrink-0 w-[220px]"
-                              style={{
-                                ...drag.draggableProps.style,
-                                opacity: dragSnap.isDragging ? 0.85 : 1,
-                                transform: dragSnap.isDragging
-                                  ? `${drag.draggableProps.style?.transform ?? ""} rotate(1.5deg)`
-                                  : drag.draggableProps.style?.transform,
-                              }}
-                            >
-                              <LeadCard lead={lead} onClick={() => onLeadClick(lead)} kanban />
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                      {col.leads.length === 0 && !snapshot.isDraggingOver && (
-                        <p className="flex items-center px-4 text-xs text-muted-foreground italic">
-                          No leads
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </Droppable>
+                {/* Droppable horizontal row — scroll wrapper is OUTSIDE the droppable
+                    ref so @hello-pangea/dnd doesn't try to track its scroll offset */}
+                <div className="overflow-x-auto rounded-xl">
+                  <Droppable droppableId={String(col.status.id)} direction="horizontal">
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className="flex flex-row gap-2 p-2 min-h-[100px] transition-colors"
+                        style={{
+                          minWidth: "max-content",
+                          borderRadius: "inherit",
+                          background: snapshot.isDraggingOver
+                            ? `${col.status.color}0A`
+                            : "var(--bg-elevated)",
+                          border: snapshot.isDraggingOver
+                            ? `1px solid ${col.status.color}40`
+                            : "1px solid var(--border)",
+                        }}
+                      >
+                        {col.leads.map((lead, index) => (
+                          <Draggable key={lead.uuid} draggableId={lead.uuid} index={index}>
+                            {(drag, dragSnap) => (
+                              <DraggableCard
+                                drag={drag}
+                                dragSnap={dragSnap}
+                                lead={lead}
+                                onLeadClick={onLeadClick}
+                              />
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                        {col.leads.length === 0 && !snapshot.isDraggingOver && (
+                          <p className="flex items-center px-4 text-xs text-muted-foreground italic">
+                            No leads
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </Droppable>
+                </div>
               </div>
             );
           })}

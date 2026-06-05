@@ -155,9 +155,12 @@ export function LeadCard({ lead, onClick, kanban = false }: Props) {
           <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-secondary)" }}>
             {(lead.budgetMin != null || lead.budgetMax != null) && (
               <span>
-                {lead.budgetMin != null ? fmtBudget(lead.budgetMin) : "—"}
-                {" – "}
-                {lead.budgetMax != null ? fmtBudget(lead.budgetMax) : "—"}
+                {lead.budgetMin != null && lead.budgetMax != null
+                  ? `${fmtBudget(lead.budgetMin)} – ${fmtBudget(lead.budgetMax)}`
+                  : lead.budgetMin != null
+                  ? `${fmtBudget(lead.budgetMin)}+`
+                  : `Up to ${fmtBudget(lead.budgetMax!)}`
+                }
               </span>
             )}
             {lead.timeline && fmtDate(lead.timeline) && (

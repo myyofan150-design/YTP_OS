@@ -349,23 +349,44 @@ export interface TaskDetail extends Task {
   attachments: TaskAttachment[];
 }
 
+export interface Shift {
+  id: number;
+  name: string;
+  startTime: string;
+  endTime: string;
+  graceMinutes: number;
+  breakMinutes: number;
+  isOvernight: boolean;
+  isDefault: boolean;
+  createdAt: string;
+}
+
+export interface Holiday {
+  id: number;
+  name: string;
+  date: string;
+  type: "NATIONAL" | "OPTIONAL" | "COMPANY";
+  createdAt: string;
+}
+
 export interface AttendanceLog {
   id: number;
   employeeId: number;
   date: string;
   clockIn?: string | null;
   clockOut?: string | null;
-  type: string;
+  type: "PRESENT" | "HALF_DAY" | "ABSENT" | "LEAVE" | "COMP_OFF" | "HOLIDAY" | "WFH";
   lateMinutes: number;
   earlyOutMinutes: number;
   overtimeMinutes: number;
   workMinutes?: number | null;
   notes?: string | null;
   isManual: boolean;
+  source?: string;
   createdAt: string;
   // populated in team endpoint
   employee?: {
-    id: number; uuid: string; employeeCode: string;
+    id: number; uuid: string; employeeCode: string; department?: string | null;
     user: { id: number; name: string; avatarUrl?: string | null };
   };
 }
@@ -375,10 +396,77 @@ export interface AttendanceSummary {
   presentDays: number;
   halfDays: number;
   leaveDays: number;
+  compOffDays: number;
+  wfhDays: number;
+  holidayDays: number;
   absentDays: number;
   totalLateMinutes: number;
   totalOvertimeMinutes: number;
   totalWorkMinutes: number;
+}
+
+export interface LiveBoardEntry {
+  employeeId: number;
+  employeeCode: string;
+  department?: string | null;
+  name: string;
+  avatarUrl?: string | null;
+  status: "IN" | "OUT" | "NOT_IN" | "LEAVE" | "HOLIDAY" | "COMP_OFF";
+  clockIn?: string | null;
+  clockOut?: string | null;
+  lateMinutes: number;
+  type?: string | null;
+}
+
+export interface RegularizationRequest {
+  id: number;
+  uuid: string;
+  employeeId: number;
+  date: string;
+  requestedClockIn?: string | null;
+  requestedClockOut?: string | null;
+  requestedType: "PRESENT" | "HALF_DAY" | "WFH";
+  reason: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  reviewedBy?: number | null;
+  reviewNote?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  // populated in HR endpoints
+  empCode?: string;
+  empName?: string;
+  empAvatar?: string | null;
+  department?: string | null;
+  reviewerName?: string | null;
+}
+
+export interface WFHRequest {
+  id: number;
+  uuid: string;
+  employeeId: number;
+  fromDate: string;
+  toDate: string;
+  days: number;
+  reason?: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  reviewedBy?: number | null;
+  reviewNote?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  // populated in HR endpoints
+  empCode?: string;
+  empName?: string;
+  empAvatar?: string | null;
+  department?: string | null;
+  reviewerName?: string | null;
+}
+
+export interface AttendancePolicy {
+  id: number;
+  keyName: string;
+  value: string;
+  label?: string | null;
+  description?: string | null;
 }
 
 export interface LeaveRequest {
@@ -389,6 +477,8 @@ export interface LeaveRequest {
   fromDate: string;
   toDate: string;
   days: number;
+  isHalfDay: boolean;
+  halfDaySlot?: "FIRST_HALF" | "SECOND_HALF" | null;
   reason?: string | null;
   status: string;
   reviewedBy?: number | null;
@@ -400,6 +490,24 @@ export interface LeaveRequest {
     id: number; uuid: string; employeeCode: string;
     user: { id: number; name: string; email?: string; avatarUrl?: string | null };
     leaveBalances?: LeaveBalance[];
+  };
+}
+
+export interface CompOffRequest {
+  id: number;
+  uuid: string;
+  employeeId: number;
+  workedDate: string;
+  reason?: string | null;
+  status: string;
+  expiresAt?: string | null;
+  reviewedBy?: number | null;
+  reviewNote?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  employee?: {
+    id: number; employeeCode: string;
+    user: { id: number; name: string; email?: string; avatarUrl?: string | null };
   };
 }
 
@@ -426,10 +534,12 @@ export interface PayrollRecord {
   generatedBy: number;
   createdAt: string;
   employee?: {
-    id: number;
-    uuid: string;
+    id?: number;
+    uuid?: string;
     employeeCode: string;
-    user: { id: number; name: string; email: string; avatarUrl?: string | null };
+    department?: string | null;
+    designation?: string | null;
+    user: { id?: number; name: string; email: string; avatarUrl?: string | null };
   };
 }
 
@@ -514,6 +624,7 @@ export interface Subscription {
   billingCycle: MetaOption | null;
   status: MetaOption | null;
   price: number | null;
+  nextRenewalAmount?: number | null;
   currency: string;
   autopay: boolean;
   planTier: "free" | "basic" | "trial" | "pro" | "premium" | null;
@@ -648,6 +759,7 @@ export interface TodoTask {
   description?: string | null;
   status: TodoStatus;
   priority: TodoPriority;
+  stage?: "todo" | "inprogress" | null;
   dueDate?: string | null;
   dueTime?: string | null;
   reminderAt?: string | null;
@@ -711,80 +823,6 @@ export interface TodoTaskDetail extends TodoTask {
   note?: string | null;
   activity: TodoActivity[];
   assignedUser?: { id: number; name: string; email: string; avatarUrl?: string | null } | null;
-}
-
-// ─── Notes Module ─────────────────────────────────────────────────────────────
-
-export interface NoteTag {
-  id: number;
-  uuid: string;
-  name: string;
-  color: string;
-  createdBy: number;
-  noteCount?: number;
-}
-
-export interface NoteAttachment {
-  id: number;
-  uuid: string;
-  noteId: number;
-  fileName: string;
-  filePath: string;
-  fileSize: number;
-  fileType: string;
-  createdAt: string;
-}
-
-export interface NoteMention {
-  id: number;
-  noteId: number;
-  mentionedUserId: number;
-  user?: { id: number; name: string; avatarUrl?: string };
-}
-
-export interface Note {
-  id: number;
-  uuid: string;
-  title: string;
-  content: string;
-  category: "lead" | "client" | "project" | "meeting" | "branding" | "personal" | "business" | "other";
-  priority: "low" | "medium" | "high" | "critical";
-  status: "active" | "archived" | "deleted";
-  isStarred: boolean;
-  isRead: boolean;
-  isSnoozed: boolean;
-  snoozedUntil?: string;
-  linkedModule: string;
-  linkedModuleUuid?: string;
-  linkedClientId?: number;
-  linkedClient?: { id: number; companyName: string };
-  assignedTo?: number;
-  assignedUser?: { id: number; name: string; avatarUrl?: string };
-  createdBy: number;
-  createdByUser?: { name: string; avatarUrl?: string };
-  tags: NoteTag[];
-  attachments?: NoteAttachment[];
-  mentions?: NoteMention[];
-  contentExcerpt?: string;
-  attachmentCount?: number;
-  deletedAt?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface NoteFilters {
-  category?: string;
-  priority?: string;
-  status?: string;
-  tagId?: string;
-  assignedTo?: string;
-  isStarred?: boolean;
-  hasAttachments?: boolean;
-  linkedModule?: string;
-  search?: string;
-  sortBy?: "newest" | "oldest" | "updated";
-  page?: number;
-  limit?: number;
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────

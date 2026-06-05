@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { resolveAssetUrl } from "@/lib/utils";
@@ -20,7 +21,12 @@ interface GeneralSettings {
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
+  const router = useRouter();
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
+  useEffect(() => {
+    if (user?.role === "EMPLOYEE") router.replace("/");
+  }, [user?.role, router]);
 
   const [settings, setSettings]   = useState<GeneralSettings>({
     company_name: "", company_tagline: "", company_email: "", company_logo_url: null,
@@ -88,12 +94,12 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
+      <div className="animate-fade-in">
         <h1 className="text-xl font-bold text-foreground">General Settings</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Company branding used across invoices and the app</p>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6 rounded-2xl border border-border bg-card p-6">
+      <form onSubmit={handleSave} className="space-y-6 rounded-2xl border border-border bg-card p-6 animate-fade-up delay-100">
 
         {/* Logo */}
         <div className="space-y-2">

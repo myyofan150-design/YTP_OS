@@ -126,7 +126,7 @@ export default function InvoiceViewPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-5">
       {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between animate-fade-in">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 mr-1" />Back
@@ -168,7 +168,7 @@ export default function InvoiceViewPage() {
       )}
 
       {/* Invoice card — matches the live preview layout */}
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+      <div className="animate-fade-up delay-100 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
         {/* Blue header */}
         <div className="p-6" style={{ background: "#1d4ed8" }}>
           <div className="flex justify-between items-start">

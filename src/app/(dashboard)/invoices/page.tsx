@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 import { Invoice, InvoiceStats } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +69,9 @@ function StatCard({ label, value, sub, icon, iconBg, index = 0 }: {
 }
 
 export default function InvoicesPage() {
+  const { user } = useAuthStore();
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+
   const [stats, setStats]       = useState<InvoiceStats | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [total, setTotal]       = useState(0);
@@ -139,8 +143,8 @@ export default function InvoicesPage() {
     }
   }
 
-  async function deleteInvoice(id: number) {
-    if (!confirm("Delete this draft invoice?")) return;
+  async function deleteInvoice(id: number, invoiceNumber: string) {
+    if (!confirm(`Permanently delete invoice ${invoiceNumber}? This cannot be undone.`)) return;
     try {
       await api.delete(`/invoices/${id}`);
       load(); loadStats();
@@ -149,13 +153,13 @@ export default function InvoicesPage() {
     }
   }
 
-  async function downloadPdf(id: number, number: string) {
+  async function downloadPdf(id: number, invoiceNumber: string) {
     try {
       const res = await api.get(`/invoices/${id}/pdf`, { responseType: "blob" });
       const url = URL.createObjectURL(res.data as Blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${number.replace(/\//g, "-")}.pdf`;
+      const a   = document.createElement("a");
+      a.href     = url;
+      a.download = `${invoiceNumber.replace(/\//g, "-")}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -347,9 +351,9 @@ export default function InvoicesPage() {
                             <CheckCircle className="h-4 w-4" />
                           </button>
                         )}
-                        {inv.status === "DRAFT" && (
+                        {isSuperAdmin && (
                           <button
-                            onClick={() => deleteInvoice(inv.id)}
+                            onClick={() => deleteInvoice(inv.id, inv.invoiceNumber)}
                             title="Delete invoice"
                             className="h-7 w-7 inline-flex items-center justify-center rounded text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors"
                           >

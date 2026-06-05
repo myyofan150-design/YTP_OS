@@ -16,6 +16,14 @@ import {
 } from "@/components/ui/select";
 import type { User, Client, ApiResponse } from "@/types";
 
+const STATUS_LABELS: Record<string, string> = {
+  TODO: "To Do", IN_PROGRESS: "In Progress", IN_REVIEW: "In Review", DONE: "Done",
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  LOW: "Low", MEDIUM: "Medium", HIGH: "High", URGENT: "Urgent",
+};
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -142,10 +150,10 @@ export function AddTaskModal({ open, onClose, onCreated, defaultStatus = "TODO" 
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-slate-700">Status</Label>
               <Select value={form.status} onValueChange={(v) => set("status", v ?? "TODO")}>
-                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 text-sm"><SelectValue>{(v: string) => STATUS_LABELS[v] ?? v}</SelectValue></SelectTrigger>
                 <SelectContent>
                   {["TODO","IN_PROGRESS","IN_REVIEW","DONE"].map((s) => (
-                    <SelectItem key={s} value={s} className="text-sm">{s.replace("_"," ")}</SelectItem>
+                    <SelectItem key={s} value={s} className="text-sm">{STATUS_LABELS[s]}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -153,10 +161,10 @@ export function AddTaskModal({ open, onClose, onCreated, defaultStatus = "TODO" 
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-slate-700">Priority</Label>
               <Select value={form.priority} onValueChange={(v) => set("priority", v ?? "MEDIUM")}>
-                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 text-sm"><SelectValue>{(v: string) => PRIORITY_LABELS[v] ?? v}</SelectValue></SelectTrigger>
                 <SelectContent>
                   {["LOW","MEDIUM","HIGH","URGENT"].map((p) => (
-                    <SelectItem key={p} value={p} className="text-sm">{p}</SelectItem>
+                    <SelectItem key={p} value={p} className="text-sm">{PRIORITY_LABELS[p]}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -238,7 +246,9 @@ export function AddTaskModal({ open, onClose, onCreated, defaultStatus = "TODO" 
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-slate-700">Link to Client</Label>
             <Select value={form.clientId} onValueChange={(v) => set("clientId", v ?? "")}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="No client" /></SelectTrigger>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue>{(v: string) => v ? (clients.find(c => String(c.id) === v)?.companyName ?? v) : "No client"}</SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="" className="text-sm">No client</SelectItem>
                 {clients.map((c) => (

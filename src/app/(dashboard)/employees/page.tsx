@@ -386,7 +386,7 @@ function EmployeesContent() {
             { label: "Notice Period", value: stats.onNoticePeriod,       color: "text-amber-600" },
             { label: "Missing Docs",  value: stats.missingMandatoryDocs, color: "text-red-600" },
           ].map((s, i) => (
-            <div key={i} className="rounded-2xl border border-border bg-card px-4 py-3 text-center">
+            <div key={i} className="animate-fade-up rounded-2xl border border-border bg-card px-4 py-3 text-center" style={{ animationDelay: `${i * 60}ms` }}>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{s.label}</p>
               <p className={`text-xl font-bold mt-0.5 ${s.color || "text-foreground"}`}>{s.value}</p>
             </div>
@@ -395,7 +395,7 @@ function EmployeesContent() {
       )}
 
       {/* ── Filters ──────────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 flex-wrap print:hidden">
+      <div className="flex items-center gap-2 flex-wrap print:hidden animate-fade-in delay-100">
         <Input
           placeholder="Search name, code, email…"
           value={search}
@@ -464,7 +464,7 @@ function EmployeesContent() {
       </div>
 
       {/* ── Table ────────────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="animate-fade-up delay-200 rounded-2xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

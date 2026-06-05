@@ -181,13 +181,20 @@ export function SubscriptionCard({ sub, onClick }: Props) {
 
       {/* ── Price ── */}
       <div>
-        <span className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
-          {fmtPrice(sub.price, sub.currency)}
-        </span>
-        {sub.billingCycle && (
-          <span className="ml-1 text-xs" style={{ color: "var(--text-secondary)" }}>
-            / {sub.billingCycle.label}
+        <div>
+          <span className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>
+            {fmtPrice(sub.price, sub.currency)}
           </span>
+          {sub.billingCycle && (
+            <span className="ml-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+              / {sub.billingCycle.label}
+            </span>
+          )}
+        </div>
+        {sub.nextRenewalAmount != null && (
+          <p className="text-xs mt-0.5 font-medium" style={{ color: "#F59E0B" }}>
+            Next renewal: {fmtPrice(sub.nextRenewalAmount, sub.currency)}
+          </p>
         )}
       </div>
 

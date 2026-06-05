@@ -32,6 +32,7 @@ interface FormState {
   billingCycleId: string;
   statusId: string;
   price: string;
+  nextRenewalAmount: string;
   currency: string;
   autopay: boolean;
   planTier: string;
@@ -43,7 +44,7 @@ const EMPTY: FormState = {
   name: "", logoUrl: "", link: "", username: "", password: "",
   startDate: "", endDate: "",
   categoryId: "", billingCycleId: "", statusId: "",
-  price: "", currency: "INR", autopay: false,
+  price: "", nextRenewalAmount: "", currency: "INR", autopay: false,
   planTier: "", usageType: "", remarks: "",
 };
 
@@ -111,7 +112,8 @@ export function SubscriptionFormDialog({
         categoryId:    s.category     ? String(s.category.id)     : "",
         billingCycleId: s.billingCycle ? String(s.billingCycle.id) : "",
         statusId:      s.status       ? String(s.status.id)       : "",
-        price:         s.price != null ? String(s.price) : "",
+        price:             s.price             != null ? String(s.price)             : "",
+        nextRenewalAmount: s.nextRenewalAmount != null ? String(s.nextRenewalAmount) : "",
         currency:      s.currency ?? "INR",
         autopay:       s.autopay,
         planTier:      s.planTier  ?? "",
@@ -166,7 +168,8 @@ export function SubscriptionFormDialog({
         categoryId:    form.categoryId    ? Number(form.categoryId)    : null,
         billingCycleId: form.billingCycleId ? Number(form.billingCycleId) : null,
         statusId:      form.statusId      ? Number(form.statusId)      : null,
-        price:         form.price         ? Number(form.price)         : null,
+        price:             form.price             ? Number(form.price)             : null,
+        nextRenewalAmount: form.nextRenewalAmount ? Number(form.nextRenewalAmount) : null,
         currency:      form.currency,
         autopay:       form.autopay,
         planTier:      form.planTier  || null,
@@ -203,6 +206,10 @@ export function SubscriptionFormDialog({
   }
 
   const CURRENCIES = ["INR", "USD", "EUR", "GBP"];
+
+  const selectedCategory     = categories.find(c => String(c.id) === form.categoryId);
+  const selectedStatus       = statuses.find(s => String(s.id) === form.statusId);
+  const selectedBillingCycle = billingCycles.find(b => String(b.id) === form.billingCycleId);
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -301,7 +308,16 @@ export function SubscriptionFormDialog({
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Category</Label>
                 <Select value={form.categoryId} onValueChange={v => set("categoryId", v ?? "")}>
-                  <SelectTrigger className="h-8 text-sm w-full"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-sm w-full">
+                    <span className="flex items-center gap-1.5 truncate">
+                      {selectedCategory ? (
+                        <>
+                          <span className="h-2 w-2 rounded-full shrink-0" style={{ background: selectedCategory.color }} />
+                          <span className="truncate">{selectedCategory.label}</span>
+                        </>
+                      ) : <span style={{ color: "var(--text-secondary)" }}>None</span>}
+                    </span>
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value=""><span style={{ color: "var(--text-secondary)" }}>None</span></SelectItem>
                     {categories.map(c => (
@@ -318,7 +334,16 @@ export function SubscriptionFormDialog({
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Status</Label>
                 <Select value={form.statusId} onValueChange={v => set("statusId", v ?? "")}>
-                  <SelectTrigger className="h-8 text-sm w-full"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-sm w-full">
+                    <span className="flex items-center gap-1.5 truncate">
+                      {selectedStatus ? (
+                        <>
+                          <span className="h-2 w-2 rounded-full shrink-0" style={{ background: selectedStatus.color }} />
+                          <span className="truncate">{selectedStatus.label}</span>
+                        </>
+                      ) : <span style={{ color: "var(--text-secondary)" }}>None</span>}
+                    </span>
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value=""><span style={{ color: "var(--text-secondary)" }}>None</span></SelectItem>
                     {statuses.map(s => (
@@ -335,7 +360,16 @@ export function SubscriptionFormDialog({
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Billing Cycle</Label>
                 <Select value={form.billingCycleId} onValueChange={v => set("billingCycleId", v ?? "")}>
-                  <SelectTrigger className="h-8 text-sm w-full"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-sm w-full">
+                    <span className="flex items-center gap-1.5 truncate">
+                      {selectedBillingCycle ? (
+                        <>
+                          <span className="h-2 w-2 rounded-full shrink-0" style={{ background: selectedBillingCycle.color }} />
+                          <span className="truncate">{selectedBillingCycle.label}</span>
+                        </>
+                      ) : <span style={{ color: "var(--text-secondary)" }}>None</span>}
+                    </span>
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value=""><span style={{ color: "var(--text-secondary)" }}>None</span></SelectItem>
                     {billingCycles.map(b => (
@@ -351,12 +385,23 @@ export function SubscriptionFormDialog({
               </div>
             </div>
 
-            {/* Row 6: Price + Currency + Autopay */}
-            <div className="grid grid-cols-3 gap-3">
+            {/* Row 6: Price + Next Renewal Amount */}
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Price</Label>
-                <Input type="number" min="0" step="0.01" value={form.price} onChange={e => set("price", e.target.value)} className="h-8 text-sm" />
+                <Input type="number" min="0" step="0.01" value={form.price} onChange={e => set("price", e.target.value)} className="h-8 text-sm" placeholder="Current price" />
               </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">
+                  Next Renewal Amount
+                  <span className="ml-1 text-[10px] font-normal" style={{ color: "var(--text-secondary)" }}>(if different from price)</span>
+                </Label>
+                <Input type="number" min="0" step="0.01" value={form.nextRenewalAmount} onChange={e => set("nextRenewalAmount", e.target.value)} className="h-8 text-sm" placeholder="Leave blank if same" />
+              </div>
+            </div>
+
+            {/* Row 6b: Currency + Autopay */}
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Currency</Label>
                 <Select value={form.currency} onValueChange={v => set("currency", v ?? "INR")}>

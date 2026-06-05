@@ -7,492 +7,102 @@ import { useAuth } from "@/hooks/useAuth";
 
 import { timeAgo } from "@/lib/utils";
 import api from "@/lib/api";
-import type { Notification, TodoGroup, TodoList, NoteTag } from "@/types";
+import type { Notification } from "@/types";
 import {
-  LayoutDashboard, Building2, Users, CheckSquare, Grid3X3,
+  LayoutDashboard, Building2, Users, CheckSquare,
   Clock, CalendarDays, Banknote, FileText, BarChart3, ScrollText,
   Shield, UserCircle, Bell, LogOut, Search, Menu, X, Lock,
   CheckCheck, CreditCard, UserPlus,
   Star, UserCheck, AlertCircle, CheckCircle2,
   ChevronDown, ChevronRight, ChevronLeft, ListTodo, Plus,
   Archive, Trash2, Settings, MessageSquare,
-  PanelLeftClose, PanelLeftOpen,
+  PanelLeftClose, PanelLeftOpen, IdCard, KeyRound,
 } from "lucide-react";
 import { useTotalUnread } from "@/hooks/useChat";
 import { useSettings } from "@/hooks/useSettings";
 import { resolveAssetUrl } from "@/lib/utils";
-import { NewListDialog }  from "@/components/modules/todo/NewListDialog";
-import { NewGroupDialog } from "@/components/modules/todo/NewGroupDialog";
 
 // ─── Nav structure ─────────────────────────────────────────────────────────────
 
 interface NavItem { label: string; href: string; icon: React.ElementType; roles?: string[]; }
-interface NavGroup { label: string; items: NavItem[]; }
+interface NavSection { label: string; icon: React.ElementType; items: NavItem[]; }
 
-const NAV_GROUPS: NavGroup[] = [
+// Top-level standalone links — always visible, no collapse
+const STANDALONE_NAV: NavItem[] = [
+  { label: "Dashboard", href: "/",     icon: LayoutDashboard },
+  { label: "Chat",      href: "/chat", icon: MessageSquare   },
+];
+
+// Collapsible groups
+const NAV_SECTIONS: NavSection[] = [
   {
-    label: "MAIN",
+    label: "CRM",
+    icon: Building2,
     items: [
-      { label: "Dashboard",  href: "/",           icon: LayoutDashboard },
-      { label: "Chat",       href: "/chat",       icon: MessageSquare },
-      { label: "Leads",      href: "/leads",      icon: UserPlus },
-      { label: "Clients",    href: "/clients",    icon: Building2 },
-      { label: "Employees",  href: "/employees",   icon: Users },
-      { label: "Tasks",      href: "/tasks",       icon: CheckSquare },
-      { label: "Workspace",  href: "/workspace",   icon: Grid3X3 },
+      { label: "Leads",    href: "/leads",    icon: UserPlus,  roles: ["SUPER_ADMIN", "ADMIN", "ACCOUNTANT", "HR", "TEAM_LEAD"] },
+      { label: "Clients",  href: "/clients",  icon: Building2, roles: ["SUPER_ADMIN", "ADMIN", "ACCOUNTANT", "HR", "TEAM_LEAD"] },
+      { label: "Invoices", href: "/invoices", icon: FileText,  roles: ["SUPER_ADMIN", "ADMIN", "ACCOUNTANT", "HR", "TEAM_LEAD"] },
+    ],
+  },
+  {
+    label: "Work Management",
+    icon: CheckSquare,
+    items: [
+      { label: "Tasks",  href: "/tasks",  icon: CheckSquare },
+      { label: "To Do",  href: "/todo",   icon: ListTodo    },
     ],
   },
   {
     label: "HR",
+    icon: Users,
     items: [
-      { label: "Attendance", href: "/attendance",  icon: Clock },
-      { label: "Leave",      href: "/leave",       icon: CalendarDays },
+      { label: "Employees",  href: "/employees",  icon: Users,        roles: ["SUPER_ADMIN","ADMIN","HR","TEAM_LEAD","ACCOUNTANT"] },
+      { label: "Attendance", href: "/attendance", icon: Clock,        roles: ["SUPER_ADMIN","ADMIN","HR","TEAM_LEAD"] },
+      { label: "Leave",      href: "/leave",      icon: CalendarDays, roles: ["SUPER_ADMIN","ADMIN","HR","TEAM_LEAD"] },
+      { label: "Payroll",    href: "/payroll",    icon: Banknote,     roles: ["SUPER_ADMIN","ADMIN","HR","ACCOUNTANT"] },
     ],
   },
   {
-    label: "FINANCE",
+    label: "Finance",
+    icon: CreditCard,
     items: [
-      { label: "Payroll",        href: "/payroll",        icon: Banknote },
-      { label: "Invoices",       href: "/invoices",       icon: FileText },
-      { label: "Subscriptions",  href: "/subscriptions",  icon: CreditCard },
+      { label: "Subscription", href: "/subscriptions", icon: CreditCard, roles: ["SUPER_ADMIN", "ADMIN", "ACCOUNTANT", "HR", "TEAM_LEAD"] },
     ],
   },
   {
-    label: "REPORTS",
+    label: "Administration",
+    icon: Shield,
     items: [
-      { label: "Reports",       href: "/reports",       icon: BarChart3 },
-      { label: "Activity Logs", href: "/activity-logs", icon: ScrollText, roles: ["SUPER_ADMIN", "ADMIN"] },
-    ],
-  },
-  {
-    label: "SETTINGS",
-    items: [
-      { label: "Users",  href: "/users",  icon: Shield,  roles: ["SUPER_ADMIN", "ADMIN"] },
+      { label: "Users",           href: "/users",            icon: Shield,    roles: ["SUPER_ADMIN", "ADMIN"] },
+      { label: "Activity Logs",   href: "/activity-logs",    icon: ScrollText, roles: ["SUPER_ADMIN", "ADMIN"] },
+      { label: "Change Requests", href: "/change-requests",  icon: KeyRound,  roles: ["SUPER_ADMIN", "ADMIN", "HR"] },
     ],
   },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
   "/":              "Dashboard",
+  "/chat":          "Chat",
   "/leads":         "Leads",
   "/clients":       "Clients",
-  "/employees":     "Employees",
+  "/invoices":      "Invoices",
   "/tasks":         "Tasks",
+  "/todo":          "To Do",
+  "/employees":     "Employees",
   "/attendance":    "Attendance",
   "/leave":         "Leave Management",
   "/payroll":       "Payroll",
-  "/invoices":       "Invoices",
-  "/subscriptions":  "Subscription Tracker",
-  "/workspace":      "Workspace",
-  "/reports":       "Reports",
+  "/subscriptions": "Subscription Tracker",
   "/users":         "User Management",
-  "/profile":       "My Profile",
-  "/notifications": "Notifications",
   "/activity-logs": "Activity Logs",
-  "/settings":      "Settings",
-  "/todo":          "To Do",
-  "/notes":         "Notes",
-  "/chat":          "Chat",
+  "/profile":          "My Account",
+  "/my-profile":       "My Profile",
+  "/notifications":    "Notifications",
+  "/settings":         "Settings",
+  "/change-requests":  "Change Requests",
 };
 
-// ─── Todo Sidebar Section ─────────────────────────────────────────────────────
 
-const SMART_VIEW_ITEMS = [
-  { view: "today",          label: "Today",          Icon: CalendarDays },
-  { view: "important",      label: "Important",      Icon: Star },
-  { view: "assigned-to-me", label: "Assigned to Me", Icon: UserCheck },
-  { view: "overdue",        label: "Overdue",        Icon: AlertCircle },
-  { view: "completed",      label: "Completed",      Icon: CheckCircle2 },
-] as const;
-
-
-function TodoSidebarSection({
-  pathname,
-  navReady,
-  baseStagger,
-}: {
-  pathname: string;
-  navReady: boolean;
-  baseStagger: number;
-}) {
-  const [collapsed, setCollapsed]     = useState(true);
-  const [groups, setGroups]           = useState<TodoGroup[]>([]);
-  const [lists, setLists]             = useState<TodoList[]>([]);
-  const [openGroups, setOpenGroups]   = useState<Set<number>>(new Set());
-  const [newListOpen, setNewListOpen] = useState(false);
-  const [newGroupOpen, setNewGroupOpen] = useState(false);
-  const router = useRouter();
-
-  function fetchData() {
-    api.get("/todo/groups").then(r => setGroups(r.data.data ?? [])).catch(() => {});
-    api.get("/todo/lists").then(r  => setLists(r.data.data ?? [])).catch(() => {});
-  }
-
-  useEffect(() => { fetchData(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function toggleGroup(id: number) {
-    setOpenGroups(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
-
-  const isTodoActive   = pathname.startsWith("/todo");
-  let   idx            = baseStagger;
-  const ungroupedLists = lists.filter(l => !l.groupId);
-
-  // Resolve active view from URL (client-only)
-  const activeView = typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search).get("view")
-    : null;
-  const activeListUuid = typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search).get("listUuid")
-    : null;
-
-  return (
-    <>
-      <div>
-        {/* Section header row */}
-        <div
-          className="flex items-center px-3 py-1"
-          style={{
-            opacity:    navReady ? 1 : 0,
-            transform:  navReady ? "translateX(0)" : "translateX(20px)",
-            transition: `opacity 0.3s ease ${idx * 40}ms, transform 0.3s ease ${idx * 40}ms`,
-          }}
-        >
-          <button
-            onClick={() => setCollapsed(v => !v)}
-            className="flex items-center gap-1 flex-1 min-w-0"
-          >
-            <p
-              className="text-[10px] font-semibold uppercase"
-              style={{ letterSpacing: "0.08em", color: "rgba(255,255,255,0.4)", padding: "8px 0 4px" }}
-            >
-              TO DO
-            </p>
-            {collapsed
-              ? <ChevronRight size={11} style={{ color: "rgba(255,255,255,0.3)" }} />
-              : <ChevronDown  size={11} style={{ color: "rgba(255,255,255,0.3)" }} />
-            }
-          </button>
-          {/* New Group button */}
-          <button
-            onClick={e => { e.stopPropagation(); setNewGroupOpen(true); }}
-            title="New Group"
-            className="flex h-5 w-5 items-center justify-center rounded opacity-0 hover:opacity-100 transition-opacity ml-1"
-            style={{ color: "rgba(255,255,255,0.4)" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "0"; }}
-          >
-            <Plus size={10} />
-          </button>
-        </div>
-
-        {!collapsed && (
-          <ul className="space-y-0.5">
-            {/* Smart views */}
-            {SMART_VIEW_ITEMS.map(({ view, label, Icon }) => {
-              const href     = `/todo?view=${view}`;
-              const isActive = isTodoActive && activeView === view;
-              return (
-                <li
-                  key={view}
-                  style={{
-                    opacity:    navReady ? 1 : 0,
-                    transform:  navReady ? "translateX(0)" : "translateX(20px)",
-                    transition: `opacity 0.3s ease ${(++idx) * 40}ms, transform 0.3s ease ${idx * 40}ms`,
-                  }}
-                >
-                  <Link
-                    href={href}
-                    className="relative flex items-center gap-[10px] h-9 px-2 rounded-lg text-sm font-medium overflow-hidden transition-all duration-150"
-                    style={isActive
-                      ? { background: "rgba(0,196,167,0.15)", color: "#00C4A7" }
-                      : { color: "rgba(255,255,255,0.65)" }
-                    }
-                    onMouseEnter={e => { if (!isActive) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.90)"; } }}
-                    onMouseLeave={e => { if (!isActive) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.65)"; } }}
-                  >
-                    {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[18px]" style={{ background: "#00C4A7", borderRadius: "0 3px 3px 0" }} />}
-                    <Icon size={14} className="shrink-0" style={{ color: "inherit" }} />
-                    <span className="flex-1">{label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-
-            {/* Groups + their lists */}
-            {groups.map(group => {
-              const groupLists = lists.filter(l => l.groupId === group.id);
-              const isOpen     = openGroups.has(group.id);
-              return (
-                <li key={group.uuid}>
-                  <button
-                    onClick={() => toggleGroup(group.id)}
-                    className="w-full flex items-center gap-2 h-8 px-2 rounded-lg text-xs transition-all duration-150"
-                    style={{ color: "rgba(255,255,255,0.5)" }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.80)"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.5)"; }}
-                  >
-                    <span className="h-2 w-2 rounded-full shrink-0" style={{ background: group.color ?? "#6366F1" }} />
-                    <span className="flex-1 text-left truncate font-medium">{group.name}</span>
-                    {isOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-                  </button>
-
-                  {isOpen && groupLists.map(list => {
-                    const listActive = isTodoActive && activeListUuid === list.uuid;
-                    return (
-                      <Link
-                        key={list.uuid}
-                        href={`/todo?listUuid=${list.uuid}`}
-                        className="flex items-center gap-2 h-8 pl-6 pr-2 rounded-lg text-xs transition-all duration-150"
-                        style={listActive
-                          ? { background: "rgba(0,196,167,0.12)", color: "#00C4A7" }
-                          : { color: "rgba(255,255,255,0.55)" }
-                        }
-                        onMouseEnter={e => { if (!listActive) { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.85)"; (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; } }}
-                        onMouseLeave={e => { if (!listActive) { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)"; (e.currentTarget as HTMLElement).style.background = "transparent"; } }}
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: list.color ?? "#6366F1" }} />
-                        <span className="flex-1 truncate">{list.name}</span>
-                        {(list.taskCount ?? 0) > 0 && (
-                          <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{list.taskCount}</span>
-                        )}
-                      </Link>
-                    );
-                  })}
-                </li>
-              );
-            })}
-
-            {/* Ungrouped lists */}
-            {ungroupedLists.map(list => {
-              const listActive = isTodoActive && activeListUuid === list.uuid;
-              return (
-                <li key={list.uuid}>
-                  <Link
-                    href={`/todo?listUuid=${list.uuid}`}
-                    className="flex items-center gap-2 h-8 px-2 rounded-lg text-xs transition-all duration-150"
-                    style={listActive
-                      ? { background: "rgba(0,196,167,0.12)", color: "#00C4A7" }
-                      : { color: "rgba(255,255,255,0.55)" }
-                    }
-                    onMouseEnter={e => { if (!listActive) { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.85)"; (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; } }}
-                    onMouseLeave={e => { if (!listActive) { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)"; (e.currentTarget as HTMLElement).style.background = "transparent"; } }}
-                  >
-                    <ListTodo size={12} className="shrink-0" style={{ color: list.color ?? "#6366F1" }} />
-                    <span className="flex-1 truncate">{list.name}</span>
-                    {(list.taskCount ?? 0) > 0 && (
-                      <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{list.taskCount}</span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-
-            {/* + New List */}
-            <li>
-              <button
-                onClick={() => setNewListOpen(true)}
-                className="flex items-center gap-2 h-8 w-full px-2 rounded-lg text-xs transition-all duration-150"
-                style={{ color: "rgba(255,255,255,0.35)" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.70)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.35)"; }}
-              >
-                <Plus size={12} />
-                <span>New List</span>
-              </button>
-            </li>
-          </ul>
-        )}
-      </div>
-
-      {/* Dialogs rendered here so they have the right z-context */}
-      <NewListDialog
-        open={newListOpen}
-        onClose={() => setNewListOpen(false)}
-        onCreated={list => { fetchData(); router.push(`/todo?listUuid=${list.uuid}`); }}
-      />
-      <NewGroupDialog
-        open={newGroupOpen}
-        onClose={() => setNewGroupOpen(false)}
-        onCreated={() => fetchData()}
-      />
-    </>
-  );
-}
-
-// ─── Notes Sidebar Section ────────────────────────────────────────────────────
-
-const NOTES_SMART_VIEWS = [
-  { filter: null,       label: "All Notes",      Icon: FileText  },
-  { filter: "starred",  label: "Starred",        Icon: Star      },
-  { filter: "assigned", label: "Assigned to Me", Icon: UserCheck },
-  { filter: "archived", label: "Archived",       Icon: Archive   },
-  { filter: "deleted",  label: "Deleted",        Icon: Trash2    },
-] as const;
-
-function NotesSidebarSection({
-  pathname,
-  navReady,
-  baseStagger,
-}: {
-  pathname: string;
-  navReady: boolean;
-  baseStagger: number;
-}) {
-  const [collapsed, setCollapsed] = useState(true);
-  const [tags, setTags]           = useState<NoteTag[]>([]);
-  const [tagManagerOpen, setTagManagerOpen] = useState(false);
-
-  useEffect(() => {
-    api.get("/notes/tags").then(r => setTags(r.data.data ?? [])).catch(() => {});
-  }, []);
-
-  const isNotesActive = pathname.startsWith("/notes");
-  let idx = baseStagger;
-
-  const activeFilter = typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search).get("filter")
-    : null;
-  const activeTagId = typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search).get("tagId")
-    : null;
-
-  return (
-    <>
-      <div>
-        <div
-          className="flex items-center px-3 py-1"
-          style={{
-            opacity:    navReady ? 1 : 0,
-            transform:  navReady ? "translateX(0)" : "translateX(20px)",
-            transition: `opacity 0.3s ease ${idx * 40}ms, transform 0.3s ease ${idx * 40}ms`,
-          }}
-        >
-          <button
-            onClick={() => setCollapsed(v => !v)}
-            className="flex items-center gap-1 flex-1 min-w-0"
-          >
-            <p
-              className="text-[10px] font-semibold uppercase"
-              style={{ letterSpacing: "0.08em", color: "rgba(255,255,255,0.4)", padding: "8px 0 4px" }}
-            >
-              NOTES
-            </p>
-            {collapsed
-              ? <ChevronRight size={11} style={{ color: "rgba(255,255,255,0.3)" }} />
-              : <ChevronDown  size={11} style={{ color: "rgba(255,255,255,0.3)" }} />
-            }
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); setTagManagerOpen(true); }}
-            title="Manage Tags"
-            className="flex h-5 w-5 items-center justify-center rounded transition-opacity"
-            style={{ color: "rgba(255,255,255,0.4)", opacity: 0 }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "0"; }}
-          >
-            <Settings size={10} />
-          </button>
-        </div>
-
-        {!collapsed && (
-          <ul className="space-y-0.5">
-            {/* Smart views */}
-            {NOTES_SMART_VIEWS.map(({ filter, label, Icon }) => {
-              const href = filter ? `/notes?filter=${filter}` : "/notes";
-              const isActive = isNotesActive && activeFilter === filter && (filter !== null || (!activeFilter && !activeTagId && pathname === "/notes"));
-              return (
-                <li
-                  key={label}
-                  style={{
-                    opacity:    navReady ? 1 : 0,
-                    transform:  navReady ? "translateX(0)" : "translateX(20px)",
-                    transition: `opacity 0.3s ease ${(++idx) * 40}ms, transform 0.3s ease ${idx * 40}ms`,
-                  }}
-                >
-                  <Link
-                    href={href}
-                    className="relative flex items-center gap-[10px] h-9 px-2 rounded-lg text-sm font-medium overflow-hidden transition-all duration-150"
-                    style={isActive
-                      ? { background: "rgba(0,196,167,0.15)", color: "#00C4A7" }
-                      : { color: "rgba(255,255,255,0.65)" }
-                    }
-                    onMouseEnter={e => { if (!isActive) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.90)"; } }}
-                    onMouseLeave={e => { if (!isActive) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.65)"; } }}
-                  >
-                    {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[18px]" style={{ background: "#00C4A7", borderRadius: "0 3px 3px 0" }} />}
-                    <Icon size={14} className="shrink-0" style={{ color: "inherit" }} />
-                    <span className="flex-1">{label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-
-            {/* Tags */}
-            {tags.map(tag => {
-              const isActive = isNotesActive && activeTagId === tag.uuid;
-              return (
-                <li key={tag.uuid}>
-                  <Link
-                    href={`/notes?tagId=${tag.uuid}`}
-                    className="flex items-center gap-2 h-8 px-2 rounded-lg text-xs transition-all duration-150"
-                    style={isActive
-                      ? { background: "rgba(0,196,167,0.12)", color: "#00C4A7" }
-                      : { color: "rgba(255,255,255,0.55)" }
-                    }
-                    onMouseEnter={e => { if (!isActive) { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.85)"; (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; } }}
-                    onMouseLeave={e => { if (!isActive) { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)"; (e.currentTarget as HTMLElement).style.background = "transparent"; } }}
-                  >
-                    <span className="h-2 w-2 rounded-full shrink-0" style={{ background: tag.color }} />
-                    <span className="flex-1 truncate">{tag.name}</span>
-                    {(tag.noteCount ?? 0) > 0 && (
-                      <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{tag.noteCount}</span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-
-            {/* + New Note */}
-            <li>
-              <Link
-                href="/notes?new=1"
-                className="flex items-center gap-2 h-8 w-full px-2 rounded-lg text-xs transition-all duration-150"
-                style={{ color: "rgba(255,255,255,0.35)" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.70)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.35)"; }}
-              >
-                <Plus size={12} />
-                <span>New Note</span>
-              </Link>
-            </li>
-          </ul>
-        )}
-      </div>
-
-      {tagManagerOpen && (
-        <NoteTagManagerDialog
-          open={tagManagerOpen}
-          onClose={() => { setTagManagerOpen(false); api.get("/notes/tags").then(r => setTags(r.data.data ?? [])).catch(() => {}); }}
-        />
-      )}
-    </>
-  );
-}
-
-// Lazy-load TagManagerDialog to avoid circular deps
-function NoteTagManagerDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [TagManagerDialog, setComp] = useState<React.ComponentType<{ open: boolean; onClose: () => void }> | null>(null);
-  useEffect(() => {
-    import("@/components/modules/notes/TagManagerDialog").then(m => setComp(() => m.TagManagerDialog));
-  }, []);
-  if (!TagManagerDialog) return null;
-  return <TagManagerDialog open={open} onClose={onClose} />;
-}
 
 function notifIcon(type: string) {
   const map: Record<string, string> = {
@@ -847,11 +457,13 @@ const USER_MENU_ITEMS = [
 
 function UserMenu({
   user,
+  role,
   initials,
   onLogout,
   onLock,
 }: {
   user: { name?: string; avatarUrl?: string | null } | null;
+  role?: string;
   initials: string;
   onLogout: () => void;
   onLock: () => void;
@@ -932,7 +544,7 @@ function UserMenu({
 
           {/* Menu items */}
           <div className="px-2.5 pt-2 pb-1">
-            {USER_MENU_ITEMS.map(({ label, icon: Icon, action, iconBg, iconColor }) => (
+            {USER_MENU_ITEMS.filter(item => !(item.action === "settings" && role === "EMPLOYEE")).map(({ label, icon: Icon, action, iconBg, iconColor }) => (
               <button
                 key={action}
                 onClick={() => {
@@ -988,12 +600,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router   = useRouter();
   const pathname = usePathname();
 
-  const [hydrated,          setHydrated]          = useState(false);
-  const [mobileOpen,        setMobileOpen]        = useState(false);
-  const [navReady,          setNavReady]          = useState(false);
-  const [subscriptionBadge, setSubscriptionBadge] = useState(0);
-  const [isLocked,          setIsLocked]          = useState(false);
-  const [sidebarCollapsed,  setSidebarCollapsed]  = useState(false);
+  const [hydrated,             setHydrated]             = useState(false);
+  const [mobileOpen,           setMobileOpen]           = useState(false);
+  const [navReady,             setNavReady]             = useState(false);
+  const [subscriptionBadge,    setSubscriptionBadge]    = useState(0);
+  const [changeRequestsBadge,  setChangeRequestsBadge]  = useState(0);
+  const [isLocked,             setIsLocked]             = useState(false);
+  const [sidebarCollapsed,     setSidebarCollapsed]     = useState(false);
   const { count: chatUnreadCount } = useTotalUnread();
   const settings = useSettings();
 
@@ -1020,21 +633,54 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const id = setInterval(fetchSubBadge, 5 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    const role = user?.role ?? "";
+    if (!["SUPER_ADMIN","ADMIN","HR"].includes(role)) return;
+    function fetchCRBadge() {
+      api.get("/field-permissions/pending-count")
+        .then(r => setChangeRequestsBadge(r.data.data?.count ?? 0))
+        .catch(() => {});
+    }
+    fetchCRBadge();
+    const id = setInterval(fetchCRBadge, 60_000);
+    return () => clearInterval(id);
+  }, [user?.role]);
   useEffect(() => { if (hydrated && !isAuthenticated) router.replace("/login"); }, [hydrated, isAuthenticated, router]);
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
-  // Pre-compute nav sections with stagger indices
-  const navSections = useMemo(() => {
+  // Which collapsible groups are open — auto-open the active group on mount/navigation
+  const [openGroups, setOpenGroups] = useState<Set<string>>(
+    () => new Set(NAV_SECTIONS.map(sec => sec.label))
+  );
+
+  // Auto-open the group whenever the pathname changes (e.g. navigated from outside)
+  useEffect(() => {
+    setOpenGroups(prev => {
+      const next = new Set(prev);
+      NAV_SECTIONS.forEach(sec => {
+        if (sec.items.some(item => item.href !== "/" && pathname.startsWith(item.href))) {
+          next.add(sec.label);
+        }
+      });
+      return next;
+    });
+  }, [pathname]);
+
+  function toggleGroup(label: string) {
+    setOpenGroups(prev => {
+      const next = new Set(prev);
+      next.has(label) ? next.delete(label) : next.add(label);
+      return next;
+    });
+  }
+
+  // Sections visible to the current user role
+  const visibleSections = useMemo(() => {
     const role = user?.role ?? "";
-    let idx = 0;
-    return NAV_GROUPS
-      .map(g => ({
-        label: g.label,
-        items: g.items
-          .filter(item => !item.roles || item.roles.includes(role))
-          .map(item => ({ item, staggerIndex: idx++ })),
-      }))
-      .filter(g => g.items.length > 0);
+    return NAV_SECTIONS
+      .map(sec => ({ ...sec, items: sec.items.filter(item => !item.roles || item.roles.includes(role)) }))
+      .filter(sec => sec.items.length > 0);
   }, [user?.role]);
 
   if (!hydrated || !isAuthenticated) {
@@ -1071,10 +717,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   function toggleSidebar()   { setSidebarCollapsed(v => { localStorage.setItem("sidebar_collapsed", !v ? "1" : "0"); return !v; }); }
 
   // ── Nav link component ──────────────────────────────────────────────────────
-  function NavLink({ item, staggerIndex, collapsed = false }: { item: NavItem; staggerIndex: number; collapsed?: boolean }) {
+  function NavLink({ item, staggerIndex, collapsed = false, isSubItem = false }: { item: NavItem; staggerIndex: number; collapsed?: boolean; isSubItem?: boolean }) {
     const isActive   = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-    const badgeCount = item.href === "/subscriptions" ? subscriptionBadge
-                     : item.href === "/chat"          ? chatUnreadCount
+    const badgeCount = item.href === "/subscriptions"    ? subscriptionBadge
+                     : item.href === "/chat"            ? chatUnreadCount
+                     : item.href === "/change-requests" ? changeRequestsBadge
                      : 0;
     return (
       <li
@@ -1087,7 +734,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Link
           href={item.href}
           title={collapsed ? item.label : undefined}
-          className={`relative flex items-center h-9 rounded-lg text-sm font-medium overflow-hidden transition-all duration-150 ${collapsed ? "justify-center px-0" : "gap-[10px] px-2"}`}
+          className={`relative flex items-center rounded-lg font-medium overflow-hidden transition-all duration-150 ${isSubItem ? "h-8 text-[13px]" : "h-9 text-sm"} ${collapsed ? "justify-center px-0" : "gap-[10px] px-2"}`}
           style={isActive
             ? { background: "rgba(0,196,167,0.15)", color: "#00C4A7" }
             : { color: "rgba(255,255,255,0.65)" }
@@ -1136,6 +783,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // ── Sidebar content builder ────────────────────────────────────────────────
   function buildSidebar(collapsed: boolean) {
+    const role = user?.role ?? "";
+
     return (
       <div className="flex flex-col h-full overflow-hidden">
         {/* Logo */}
@@ -1144,24 +793,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           style={{ borderBottom: "1px solid rgba(255,255,255,0.12)" }}
         >
           {resolveAssetUrl(settings?.company_logo_url) ? (
-            <img
-              src={resolveAssetUrl(settings!.company_logo_url)!}
-              alt="logo"
-              className="h-[30px] w-[30px] shrink-0 rounded-lg object-contain bg-white/10"
-            />
+            <img src={resolveAssetUrl(settings!.company_logo_url)!} alt="logo"
+              className="h-[30px] w-[30px] shrink-0 rounded-lg object-contain bg-white/10" />
           ) : (
-            <div
-              className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg font-bold text-base text-black"
-              style={{ background: "#00C4A7" }}
-            >
+            <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg font-bold text-base text-black"
+              style={{ background: "#00C4A7" }}>
               {(settings?.company_name ?? "Agency OS")[0]?.toUpperCase() ?? "A"}
             </div>
           )}
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-semibold leading-tight text-white">
-                {settings?.company_name ?? "Agency OS"}
-              </p>
+              <p className="text-[15px] font-semibold leading-tight text-white">{settings?.company_name ?? "Agency OS"}</p>
               <p className="text-[11px] leading-tight" style={{ color: "rgba(255,255,255,0.6)" }}>
                 {settings?.company_tagline ?? "YouTooPreneur"}&#8482;
               </p>
@@ -1170,70 +812,80 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* Navigation */}
-        <nav className={`flex-1 overflow-y-auto py-2 scrollbar-thin ${collapsed ? "px-1" : "px-2"}`} style={{ paddingBottom: "4px" }}>
-          {navSections.map((section, sIdx) => (
-            <div key={section.label}>
-              {!collapsed ? (
-                <p
-                  className="px-3 text-[10px] font-semibold uppercase"
-                  style={{ letterSpacing: "0.08em", color: "rgba(255,255,255,0.4)", padding: "12px 12px 4px" }}
-                >
-                  {section.label}
-                </p>
-              ) : (
-                sIdx > 0 && <div className="my-2 mx-1" style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }} />
-              )}
-              <ul className="space-y-0.5">
-                {section.items.map(({ item, staggerIndex }) => (
-                  <NavLink key={item.href} item={item} staggerIndex={staggerIndex} collapsed={collapsed} />
-                ))}
-              </ul>
-              {section.label === "MAIN" && !collapsed && (
-                <>
-                  <TodoSidebarSection
-                    pathname={pathname}
-                    navReady={navReady}
-                    baseStagger={navSections.slice(0, sIdx + 1).reduce((acc, s) => acc + s.items.length, 0)}
-                  />
-                  <NotesSidebarSection
-                    pathname={pathname}
-                    navReady={navReady}
-                    baseStagger={navSections.slice(0, sIdx + 1).reduce((acc, s) => acc + s.items.length, 0) + 12}
-                  />
-                </>
-              )}
-            </div>
-          ))}
+        <nav className={`flex-1 overflow-y-auto py-2 scrollbar-thin ${collapsed ? "px-1" : "px-2"}`}>
+
+          {/* ── Standalone items (Dashboard, Chat) ── */}
+          <ul className="space-y-0.5 mb-2">
+            {STANDALONE_NAV
+              .filter(item => !item.roles || item.roles.includes(role))
+              .map((item, i) => (
+                <NavLink key={item.href} item={item} staggerIndex={i} collapsed={collapsed} />
+              ))
+            }
+          </ul>
+
+          {/* ── Collapsible sections ── */}
+          {!collapsed && <div className="mb-1 mx-2" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }} />}
+
+          <div className="space-y-0.5">
+            {visibleSections.map((section, sIdx) => {
+              const isOpen        = openGroups.has(section.label);
+              const isGroupActive = section.items.some(item => item.href !== "/" && pathname.startsWith(item.href));
+
+              return (
+                <div key={section.label}>
+                  {/* Group header */}
+                  <button
+                    onClick={() => collapsed ? undefined : toggleGroup(section.label)}
+                    title={collapsed ? section.label : undefined}
+                    className={`flex items-center w-full h-9 rounded-lg transition-all duration-150 ${collapsed ? "justify-center px-0" : "gap-[10px] px-2"}`}
+                    style={{
+                      opacity:    navReady ? 1 : 0,
+                      transform:  navReady ? "translateX(0)" : "translateX(20px)",
+                      transition: `opacity 0.3s ease ${(sIdx + STANDALONE_NAV.length) * 40}ms, transform 0.3s ease ${(sIdx + STANDALONE_NAV.length) * 40}ms, background 0.15s, color 0.15s`,
+                      color: isGroupActive ? "#00C4A7" : "rgba(255,255,255,0.55)",
+                    }}
+                    onMouseEnter={e => { if (!isGroupActive) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.9)"; }}
+                    onMouseLeave={e => { if (!isGroupActive) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)"; }}
+                  >
+                    <section.icon size={collapsed ? 18 : 15} className="shrink-0" style={{ color: "inherit" }} />
+                    {!collapsed && (
+                      <>
+                        <span className="flex-1 text-left text-sm font-medium" style={{ color: "inherit" }}>{section.label}</span>
+                        {isOpen
+                          ? <ChevronDown  size={13} style={{ color: "rgba(255,255,255,0.4)" }} />
+                          : <ChevronRight size={13} style={{ color: "rgba(255,255,255,0.4)" }} />
+                        }
+                      </>
+                    )}
+                  </button>
+
+                  {/* Sub-items */}
+                  {!collapsed && isOpen && (
+                    <ul className="mt-0.5 mb-1 space-y-0.5 ml-[22px] pl-3" style={{ borderLeft: "1px solid rgba(255,255,255,0.1)" }}>
+                      {section.items.map((item, i) => (
+                        <NavLink key={item.href} item={item} staggerIndex={sIdx * 6 + i} collapsed={false} isSubItem />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </nav>
 
-        {/* ── Collapse toggle pinned at bottom ── */}
-        <div
-          className={`shrink-0 ${collapsed ? "px-0" : "px-2"} py-2`}
-          style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
-        >
+        {/* ── Collapse toggle ── */}
+        <div className={`shrink-0 ${collapsed ? "px-0" : "px-2"} py-2`} style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
           <button
             onClick={toggleSidebar}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             className={`flex items-center w-full h-9 rounded-lg transition-colors duration-150 ${collapsed ? "justify-center" : "gap-3 px-2"}`}
             style={{ color: "rgba(255,255,255,0.45)" }}
-            onMouseEnter={e => {
-              const el = e.currentTarget as HTMLElement;
-              el.style.background = "rgba(255,255,255,0.07)";
-              el.style.color      = "rgba(255,255,255,0.9)";
-            }}
-            onMouseLeave={e => {
-              const el = e.currentTarget as HTMLElement;
-              el.style.background = "transparent";
-              el.style.color      = "rgba(255,255,255,0.45)";
-            }}
+            onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.07)"; el.style.color = "rgba(255,255,255,0.9)"; }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = "transparent"; el.style.color = "rgba(255,255,255,0.45)"; }}
           >
-            {collapsed
-              ? <PanelLeftOpen  size={17} strokeWidth={2} />
-              : <PanelLeftClose size={17} strokeWidth={2} />
-            }
-            {!collapsed && (
-              <span className="text-sm font-medium">Collapse</span>
-            )}
+            {collapsed ? <PanelLeftOpen size={17} strokeWidth={2} /> : <PanelLeftClose size={17} strokeWidth={2} />}
+            {!collapsed && <span className="text-sm font-medium">Collapse</span>}
           </button>
         </div>
       </div>
@@ -1349,7 +1001,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             <ChatBadgeButton count={chatUnreadCount} />
             <NotificationBell />
-            <UserMenu user={user} initials={initials} onLogout={handleLogout} onLock={handleLock} />
+            <UserMenu user={user} role={user?.role} initials={initials} onLogout={handleLogout} onLock={handleLock} />
           </div>
         </header>
 

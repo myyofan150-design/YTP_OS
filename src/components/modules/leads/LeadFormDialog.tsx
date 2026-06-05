@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger,
 } from "@/components/ui/select";
 import { ChevronDown, Check, Search, X } from "lucide-react";
 import type { ApiResponse, Lead, LeadMetaOption, User } from "@/types";
@@ -239,8 +239,22 @@ export function LeadFormDialog({ open, onClose, onSaved, editUuid, meta }: Props
   const [users, setUsers]           = useState<User[]>([]);
   const [saving, setSaving]         = useState(false);
   const [error, setError]           = useState("");
+  const [budgetError, setBudgetError] = useState("");
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [editorKey, setEditorKey]   = useState(0);
+
+  const MAX_BUDGET = 9_999_999_999;
+
+  function validateBudget(min: string, max: string): string {
+    const bMin = min && Number(min) !== 0 ? Math.floor(Number(min)) : null;
+    const bMax = max && Number(max) !== 0 ? Math.floor(Number(max)) : null;
+    if (bMin !== null && bMin < 1)          return "Budget must be greater than zero";
+    if (bMax !== null && bMax < 1)          return "Budget must be greater than zero";
+    if (bMin !== null && bMin > MAX_BUDGET) return "Budget value is too large";
+    if (bMax !== null && bMax > MAX_BUDGET) return "Budget value is too large";
+    if (bMin !== null && bMax !== null && bMin > bMax) return "Min cannot exceed Max";
+    return "";
+  }
 
   function set<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -277,6 +291,9 @@ export function LeadFormDialog({ open, onClose, onSaved, editUuid, meta }: Props
   async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!form.contactPerson.trim()) { setError("Contact person is required"); return; }
+    const bErr = validateBudget(form.budgetMin, form.budgetMax);
+    if (bErr) { setBudgetError(bErr); return; }
+    setBudgetError("");
     setSaving(true); setError("");
     try {
       const body = {
@@ -293,8 +310,8 @@ export function LeadFormDialog({ open, onClose, onSaved, editUuid, meta }: Props
         statusId:               form.statusId   ? Number(form.statusId)   : null,
         priorityId:             form.priorityId ? Number(form.priorityId) : null,
         assignedTo:             form.assignedTo ? Number(form.assignedTo) : null,
-        budgetMin:              form.budgetMin  ? Number(form.budgetMin)  : null,
-        budgetMax:              form.budgetMax  ? Number(form.budgetMax)  : null,
+        budgetMin:              form.budgetMin && Number(form.budgetMin) !== 0 ? Math.floor(Number(form.budgetMin)) : null,
+        budgetMax:              form.budgetMax && Number(form.budgetMax) !== 0 ? Math.floor(Number(form.budgetMax)) : null,
         timeline:               form.timeline        || null,
         lastContacted:          form.lastContacted   || null,
         nextFollowup:           form.nextFollowup    || null,
@@ -372,61 +389,106 @@ export function LeadFormDialog({ open, onClose, onSaved, editUuid, meta }: Props
             {/* Meta */}
             <div className="grid grid-cols-2 gap-3">
               <F label="Status">
-                <Select value={form.statusId} onValueChange={v => set("statusId", v ?? "")}>
-                  <SelectTrigger className="h-8 text-sm w-full"><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value=""><span style={{ color: "var(--text-secondary)" }}>None</span></SelectItem>
-                    {meta.statuses.map(s => (
-                      <SelectItem key={s.uuid} value={String(s.id)}>
-                        <span className="flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }} />{s.label}
+                {(() => {
+                  const sel = meta.statuses.find(s => String(s.id) === form.statusId);
+                  return (
+                    <Select value={form.statusId} onValueChange={v => set("statusId", v ?? "")}>
+                      <SelectTrigger className="h-8 text-sm w-full">
+                        <span className="flex items-center gap-1.5 truncate min-w-0">
+                          {sel && <span className="h-2 w-2 rounded-full shrink-0" style={{ background: sel.color }} />}
+                          <span className="truncate" style={{ color: sel ? "inherit" : "var(--text-secondary)" }}>
+                            {sel ? sel.label : "None"}
+                          </span>
                         </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value=""><span style={{ color: "var(--text-secondary)" }}>None</span></SelectItem>
+                        {meta.statuses.map(s => (
+                          <SelectItem key={s.uuid} value={String(s.id)}>
+                            <span className="flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }} />{s.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  );
+                })()}
               </F>
               <F label="Priority">
-                <Select value={form.priorityId} onValueChange={v => set("priorityId", v ?? "")}>
-                  <SelectTrigger className="h-8 text-sm w-full"><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value=""><span style={{ color: "var(--text-secondary)" }}>None</span></SelectItem>
-                    {meta.priorities.map(p => (
-                      <SelectItem key={p.uuid} value={String(p.id)}>
-                        <span className="flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.color }} />{p.label}
+                {(() => {
+                  const sel = meta.priorities.find(p => String(p.id) === form.priorityId);
+                  return (
+                    <Select value={form.priorityId} onValueChange={v => set("priorityId", v ?? "")}>
+                      <SelectTrigger className="h-8 text-sm w-full">
+                        <span className="flex items-center gap-1.5 truncate min-w-0">
+                          {sel && <span className="h-2 w-2 rounded-full shrink-0" style={{ background: sel.color }} />}
+                          <span className="truncate" style={{ color: sel ? "inherit" : "var(--text-secondary)" }}>
+                            {sel ? sel.label : "None"}
+                          </span>
                         </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value=""><span style={{ color: "var(--text-secondary)" }}>None</span></SelectItem>
+                        {meta.priorities.map(p => (
+                          <SelectItem key={p.uuid} value={String(p.id)}>
+                            <span className="flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.color }} />{p.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  );
+                })()}
               </F>
               <F label="Source">
-                <Select value={form.sourceId} onValueChange={v => set("sourceId", v ?? "")}>
-                  <SelectTrigger className="h-8 text-sm w-full"><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value=""><span style={{ color: "var(--text-secondary)" }}>None</span></SelectItem>
-                    {meta.sources.map(s => (
-                      <SelectItem key={s.uuid} value={String(s.id)}>
-                        <span className="flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }} />{s.label}
+                {(() => {
+                  const sel = meta.sources.find(s => String(s.id) === form.sourceId);
+                  return (
+                    <Select value={form.sourceId} onValueChange={v => set("sourceId", v ?? "")}>
+                      <SelectTrigger className="h-8 text-sm w-full">
+                        <span className="flex items-center gap-1.5 truncate min-w-0">
+                          {sel && <span className="h-2 w-2 rounded-full shrink-0" style={{ background: sel.color }} />}
+                          <span className="truncate" style={{ color: sel ? "inherit" : "var(--text-secondary)" }}>
+                            {sel ? sel.label : "None"}
+                          </span>
                         </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value=""><span style={{ color: "var(--text-secondary)" }}>None</span></SelectItem>
+                        {meta.sources.map(s => (
+                          <SelectItem key={s.uuid} value={String(s.id)}>
+                            <span className="flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }} />{s.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  );
+                })()}
               </F>
               {!isEmployee && (
                 <F label="Assigned To">
-                  <Select value={form.assignedTo} onValueChange={v => set("assignedTo", v ?? "")}>
-                    <SelectTrigger className="h-8 text-sm w-full"><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value=""><span style={{ color: "var(--text-secondary)" }}>Unassigned</span></SelectItem>
-                      {users.map(u => (
-                        <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {(() => {
+                    const sel = users.find(u => String(u.id) === form.assignedTo);
+                    return (
+                      <Select value={form.assignedTo} onValueChange={v => set("assignedTo", v ?? "")}>
+                        <SelectTrigger className="h-8 text-sm w-full">
+                          <span className="truncate" style={{ color: sel ? "inherit" : "var(--text-secondary)" }}>
+                            {sel ? sel.name : "Unassigned"}
+                          </span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value=""><span style={{ color: "var(--text-secondary)" }}>Unassigned</span></SelectItem>
+                          {users.map(u => (
+                            <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    );
+                  })()}
                 </F>
               )}
             </div>
@@ -441,13 +503,36 @@ export function LeadFormDialog({ open, onClose, onSaved, editUuid, meta }: Props
             </F>
 
             {/* Budget */}
-            <div className="grid grid-cols-2 gap-3">
-              <F label="Budget Min (₹)">
-                <Input type="number" min="0" value={form.budgetMin} onChange={e => set("budgetMin", e.target.value)} className="h-8 text-sm" placeholder="0" />
-              </F>
-              <F label="Budget Max (₹)">
-                <Input type="number" min="0" value={form.budgetMax} onChange={e => set("budgetMax", e.target.value)} className="h-8 text-sm" placeholder="0" />
-              </F>
+            <div className="space-y-1">
+              <div className="grid grid-cols-2 gap-3">
+                <F label="Budget Min (₹)">
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={form.budgetMin}
+                    onChange={e => { set("budgetMin", e.target.value); setBudgetError(""); }}
+                    onBlur={() => setBudgetError(validateBudget(form.budgetMin, form.budgetMax))}
+                    className={`h-8 text-sm ${budgetError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                    placeholder="e.g. 10000"
+                  />
+                </F>
+                <F label="Budget Max (₹)">
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={form.budgetMax}
+                    onChange={e => { set("budgetMax", e.target.value); setBudgetError(""); }}
+                    onBlur={() => setBudgetError(validateBudget(form.budgetMin, form.budgetMax))}
+                    className={`h-8 text-sm ${budgetError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                    placeholder="e.g. 50000"
+                  />
+                </F>
+              </div>
+              {budgetError && (
+                <p className="text-xs text-red-500 mt-1">{budgetError}</p>
+              )}
             </div>
 
             {/* Dates */}

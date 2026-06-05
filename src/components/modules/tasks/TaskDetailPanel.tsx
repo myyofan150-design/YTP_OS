@@ -19,6 +19,10 @@ import type { TaskDetail, User, Client, ApiResponse } from "@/types";
 const STATUSES   = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"];
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"];
 
+const PRIORITY_LABELS: Record<string, string> = {
+  LOW: "Low", MEDIUM: "Medium", HIGH: "High", URGENT: "Urgent",
+};
+
 const STATUS_LABELS: Record<string, string> = {
   TODO: "To Do", IN_PROGRESS: "In Progress", IN_REVIEW: "In Review",
   DONE: "Done", CANCELLED: "Cancelled",
@@ -316,7 +320,7 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
                   value={task.status}
                   onValueChange={(v) => v && patchField("status", v)}
                 >
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue>{(v: string) => STATUS_LABELS[v] ?? v}</SelectValue></SelectTrigger>
                   <SelectContent>
                     {STATUSES.map((s) => (
                       <SelectItem key={s} value={s} className="text-xs">{STATUS_LABELS[s]}</SelectItem>
@@ -328,10 +332,10 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
                 <p className="text-xs font-medium text-slate-500 mb-1">Priority</p>
                 {isAdmin ? (
                   <Select value={task.priority} onValueChange={(v) => v && patchField("priority", v)}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue>{(v: string) => PRIORITY_LABELS[v] ?? v}</SelectValue></SelectTrigger>
                     <SelectContent>
                       {PRIORITIES.map((p) => (
-                        <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>
+                        <SelectItem key={p} value={p} className="text-xs">{PRIORITY_LABELS[p]}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -361,7 +365,9 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
                     value={task.clientId != null ? String(task.clientId) : ""}
                     onValueChange={(v) => patchField("clientId", v ? Number(v) : null)}
                   >
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="No client" /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue>{(v: string) => v ? (clients.find(c => String(c.id) === v)?.companyName ?? v) : "No client"}</SelectValue>
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="" className="text-xs">No client</SelectItem>
                       {clients.map((c) => (
