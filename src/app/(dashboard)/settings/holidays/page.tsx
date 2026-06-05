@@ -91,12 +91,12 @@ export default function HolidaysPage() {
     setLoading(true);
     try {
       const res = await api.get<ApiResponse<Holiday[]>>(`/holidays?year=${year}`);
-      const mapped = res.data.data.map((h: Record<string, unknown>) => ({
-        id:        h["id"] as number,
-        name:      h["name"] as string,
-        date:      String(h["date"]).slice(0, 10),
-        type:      h["type"] as Holiday["type"],
-        createdAt: h["created_at"] as string,
+      const mapped = res.data.data.map((h) => ({
+        id:        h.id,
+        name:      h.name,
+        date:      String(h.date).slice(0, 10),
+        type:      h.type,
+        createdAt: (h as unknown as Record<string, string>)["created_at"] ?? h.createdAt,
       }));
       setHolidays(mapped);
     } catch { /* ignore */ }

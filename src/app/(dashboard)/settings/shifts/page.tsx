@@ -132,17 +132,20 @@ export default function ShiftsPage() {
     try {
       const res = await api.get<ApiResponse<Shift[]>>("/shifts");
       // Map snake_case from API to camelCase
-      const mapped = res.data.data.map((s: Record<string, unknown>) => ({
-        id:           s["id"] as number,
-        name:         s["name"] as string,
-        startTime:    s["start_time"] as string,
-        endTime:      s["end_time"] as string,
-        graceMinutes: s["grace_minutes"] as number,
-        breakMinutes: s["break_minutes"] as number,
-        isOvernight:  Boolean(s["is_overnight"]),
-        isDefault:    Boolean(s["is_default"]),
-        createdAt:    s["created_at"] as string,
-      }));
+      const mapped = res.data.data.map((s) => {
+        const r = s as unknown as Record<string, unknown>;
+        return {
+          id:           s.id,
+          name:         s.name,
+          startTime:    r["start_time"] as string ?? s.startTime,
+          endTime:      r["end_time"] as string ?? s.endTime,
+          graceMinutes: r["grace_minutes"] as number ?? s.graceMinutes,
+          breakMinutes: r["break_minutes"] as number ?? s.breakMinutes,
+          isOvernight:  Boolean(r["is_overnight"] ?? s.isOvernight),
+          isDefault:    Boolean(r["is_default"] ?? s.isDefault),
+          createdAt:    r["created_at"] as string ?? s.createdAt,
+        };
+      });
       setShifts(mapped);
     } catch { /* ignore */ }
     finally { setLoading(false); }
