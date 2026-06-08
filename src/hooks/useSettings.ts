@@ -6,6 +6,7 @@ export interface GeneralSettings {
   company_tagline: string | null;
   company_email: string | null;
   company_logo_url: string | null;
+  sidebar_icon_url: string | null;
 }
 
 export const SETTINGS_UPDATED_EVENT = "agency:settings-updated";

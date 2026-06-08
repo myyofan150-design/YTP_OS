@@ -786,8 +786,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           className={`flex items-center h-16 shrink-0 ${collapsed ? "justify-center px-0" : "gap-3 px-4"}`}
           style={{ borderBottom: "1px solid rgba(255,255,255,0.12)" }}
         >
-          {resolveAssetUrl(settings?.company_logo_url) ? (
-            <img src={resolveAssetUrl(settings!.company_logo_url)!} alt="logo"
+          {resolveAssetUrl(settings?.sidebar_icon_url ?? settings?.company_logo_url) ? (
+            <img src={resolveAssetUrl(settings?.sidebar_icon_url ?? settings?.company_logo_url)!} alt="logo"
               className="h-[30px] w-[30px] shrink-0 rounded-lg object-contain bg-white/10" />
           ) : (
             <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg font-bold text-base text-black"

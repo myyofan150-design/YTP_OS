@@ -9,7 +9,7 @@ import { SETTINGS_UPDATED_EVENT } from "@/hooks/useSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, Save, Stamp } from "lucide-react";
+import { Camera, LayoutDashboard, Save, Stamp } from "lucide-react";
 import type { ApiResponse } from "@/types";
 
 interface GeneralSettings {
@@ -20,6 +20,7 @@ interface GeneralSettings {
   company_phone: string | null;
   company_address: string | null;
   company_seal_url: string | null;
+  sidebar_icon_url: string | null;
 }
 
 export default function SettingsPage() {
@@ -33,18 +34,21 @@ export default function SettingsPage() {
 
   const [settings, setSettings]       = useState<GeneralSettings>({
     company_name: "", company_tagline: "", company_email: "", company_logo_url: null,
-    company_phone: "", company_address: "", company_seal_url: null,
+    company_phone: "", company_address: "", company_seal_url: null, sidebar_icon_url: null,
   });
   const [loading, setLoading]         = useState(true);
   const [saving, setSaving]           = useState(false);
   const [logoFile, setLogoFile]       = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [sealFile, setSealFile]       = useState<File | null>(null);
-  const [sealPreview, setSealPreview] = useState<string | null>(null);
+  const [sealFile, setSealFile]               = useState<File | null>(null);
+  const [sealPreview, setSealPreview]         = useState<string | null>(null);
+  const [sidebarIconFile, setSidebarIconFile]       = useState<File | null>(null);
+  const [sidebarIconPreview, setSidebarIconPreview] = useState<string | null>(null);
   const [successMsg, setSuccessMsg]   = useState("");
   const [errorMsg, setErrorMsg]       = useState("");
-  const logoRef = useRef<HTMLInputElement>(null);
-  const sealRef = useRef<HTMLInputElement>(null);
+  const logoRef       = useRef<HTMLInputElement>(null);
+  const sealRef       = useRef<HTMLInputElement>(null);
+  const sidebarIconRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.get<ApiResponse<GeneralSettings>>("/settings/general")
@@ -65,6 +69,13 @@ export default function SettingsPage() {
     if (!file) return;
     setSealFile(file);
     setSealPreview(URL.createObjectURL(file));
+  }
+
+  function handleSidebarIconChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSidebarIconFile(file);
+    setSidebarIconPreview(URL.createObjectURL(file));
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -89,6 +100,14 @@ export default function SettingsPage() {
         setSealFile(null);
         setSealPreview(null);
       }
+      if (sidebarIconFile) {
+        const fd = new FormData();
+        fd.append("sidebarIcon", sidebarIconFile);
+        const iconRes = await api.post<ApiResponse<{ sidebarIconUrl: string }>>("/settings/general/sidebar-icon", fd);
+        setSettings(prev => ({ ...prev, sidebar_icon_url: iconRes.data.data.sidebarIconUrl }));
+        setSidebarIconFile(null);
+        setSidebarIconPreview(null);
+      }
       const res = await api.patch<ApiResponse<GeneralSettings>>("/settings/general", {
         company_name:    settings.company_name    || null,
         company_tagline: settings.company_tagline || null,
@@ -106,8 +125,9 @@ export default function SettingsPage() {
     }
   }
 
-  const logoSrc = logoPreview ?? resolveAssetUrl(settings.company_logo_url);
-  const sealSrc = sealPreview ?? resolveAssetUrl(settings.company_seal_url);
+  const logoSrc        = logoPreview        ?? resolveAssetUrl(settings.company_logo_url);
+  const sealSrc        = sealPreview        ?? resolveAssetUrl(settings.company_seal_url);
+  const sidebarIconSrc = sidebarIconPreview ?? resolveAssetUrl(settings.sidebar_icon_url);
 
   if (loading) {
     return (
@@ -126,8 +146,8 @@ export default function SettingsPage() {
 
       <form onSubmit={handleSave} className="space-y-6 rounded-2xl border border-border bg-card p-6 animate-fade-up delay-100">
 
-        {/* Logo + Seal side by side */}
-        <div className="grid grid-cols-2 gap-6">
+        {/* Logo + Seal + Sidebar Icon */}
+        <div className="grid grid-cols-3 gap-6">
           {/* Company Logo */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Company Logo</Label>
@@ -186,6 +206,37 @@ export default function SettingsPage() {
               <div className="text-sm text-muted-foreground space-y-0.5">
                 <p className="font-medium text-foreground text-xs">Stamp / seal</p>
                 <p className="text-xs">Shown on invoice T&amp;C</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Sidebar Icon */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sidebar Icon</Label>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => isSuperAdmin && sidebarIconRef.current?.click()}
+                disabled={!isSuperAdmin}
+                className={`relative w-20 h-20 rounded-2xl border-2 border-dashed border-border bg-muted/40 flex items-center justify-center overflow-hidden group transition-all ${
+                  isSuperAdmin ? "hover:border-primary/50 hover:bg-primary/5 cursor-pointer" : "cursor-default opacity-70"
+                }`}
+              >
+                {sidebarIconSrc ? (
+                  <img src={sidebarIconSrc} alt="Sidebar icon" className="w-full h-full object-contain p-1" />
+                ) : (
+                  <LayoutDashboard className="w-7 h-7 text-muted-foreground group-hover:text-primary transition-colors" />
+                )}
+                {isSuperAdmin && (
+                  <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl">
+                    <Camera className="w-5 h-5 text-white" />
+                  </span>
+                )}
+              </button>
+              <input ref={sidebarIconRef} type="file" accept="image/*" className="hidden" onChange={handleSidebarIconChange} />
+              <div className="text-sm text-muted-foreground space-y-0.5">
+                <p className="font-medium text-foreground text-xs">Nav icon</p>
+                <p className="text-xs">Shown in sidebar</p>
               </div>
             </div>
           </div>
