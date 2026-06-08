@@ -21,6 +21,7 @@ import {
 import { useTotalUnread } from "@/hooks/useChat";
 import { useSettings } from "@/hooks/useSettings";
 import { resolveAssetUrl } from "@/lib/utils";
+import { GlobalSearch } from "@/components/GlobalSearch";
 
 // ─── Nav structure ─────────────────────────────────────────────────────────────
 
@@ -605,6 +606,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [changeRequestsBadge,  setChangeRequestsBadge]  = useState(0);
   const [isLocked,             setIsLocked]             = useState(false);
   const [sidebarCollapsed,     setSidebarCollapsed]     = useState(false);
+  const [searchOpen,           setSearchOpen]           = useState(false);
   const { count: chatUnreadCount } = useTotalUnread();
   const settings = useSettings();
 
@@ -676,6 +678,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .map(sec => ({ ...sec, items: sec.items.filter(item => !item.roles || item.roles.includes(role)) }))
       .filter(sec => sec.items.length > 0);
   }, [user?.role]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setSearchOpen(true); }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   if (!hydrated || !isAuthenticated) {
     return (
@@ -990,13 +1000,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div className="flex items-center gap-2">
             <button
-              title="Search"
-              className="flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200"
+              title="Search (Ctrl+K)"
+              onClick={() => setSearchOpen(true)}
+              className="flex items-center gap-2 h-9 rounded-xl px-3 transition-all duration-200"
               style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"; (e.currentTarget as HTMLElement).style.background = "var(--bg-base)"; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.background = "var(--bg-elevated)"; }}
             >
-              <Search size={17} style={{ color: "var(--text-secondary)" }} />
+              <Search size={15} style={{ color: "var(--text-secondary)" }} />
+              <span className="hidden sm:block text-xs" style={{ color: "var(--text-secondary)" }}>Search…</span>
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border px-1.5 py-0.5 text-[10px] font-medium" style={{ borderColor: "var(--border)", color: "var(--text-secondary)", background: "var(--bg-base)" }}>
+                ⌘K
+              </kbd>
             </button>
 
             <ChatBadgeButton count={chatUnreadCount} />
@@ -1008,6 +1023,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main className="flex-1 overflow-y-auto p-6 scrollbar-thin">{children}</main>
       </div>
     </div>
+
+    <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
 
     {isLocked && (
       <LockScreen
