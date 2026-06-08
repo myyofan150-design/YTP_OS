@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
-import { Button } from "@/components/ui/button";
 import { Loader2, FileText, Download, File } from "lucide-react";
 
 interface Doc {
@@ -64,11 +63,15 @@ export default function ClientPortalDocumentsPage() {
                     {" · "}{doc.fileType}
                   </p>
                 </div>
-                <Button asChild variant="ghost" size="sm" className="h-8 px-3 gap-1 text-xs shrink-0">
-                  <a href={doc.filePath} target="_blank" rel="noopener noreferrer" download>
-                    <Download size={12} /> Download
-                  </a>
-                </Button>
+                <a
+                  href={doc.filePath}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  className="inline-flex items-center gap-1 h-8 px-3 text-xs rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shrink-0"
+                >
+                  <Download size={12} /> Download
+                </a>
               </li>
             ))}
           </ul>

@@ -468,7 +468,7 @@ export function TodoNav({ activeView, activeListUuid, onRefresh }: Props) {
                                   {group.name}
                                 </span>
                                 {!group.isOwner && (
-                                  <Users className="w-3 h-3 shrink-0 text-muted-foreground/50" title="Shared with you" />
+                                  <Users className="w-3 h-3 shrink-0 text-muted-foreground/50" aria-label="Shared with you" />
                                 )}
                                 {isOpen
                                   ? <ChevronDown  className="w-3 h-3 shrink-0 text-muted-foreground" />
