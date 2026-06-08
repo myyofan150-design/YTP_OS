@@ -61,7 +61,7 @@ interface PayslipRow {
   status: string; paidAt: string | null;
 }
 interface TaskRow { uuid: string; title: string; status: string; priority: string; dueDate: string | null; clientName: string | null; }
-interface TaskStats { todayTasks: number; completedToday: number; inProgress: number; inReview: number; overdue: number; completedThisMonth: number; }
+interface TaskStats { todayTasks: number; completedToday: number; inProgress: number; assigned: number; overdue: number; completedThisMonth: number; }
 interface TodoStats { today: number; important: number; assigned: number; overdue: number; completed: number; }
 interface DocRow { id: number; docType: string; docCategory: string | null; name: string; filePath: string; isMandatory: boolean; verificationStatus: string | null; expiryDate: string | null; createdAt: string; }
 interface AgreementRow { uuid: string; agreementType: string; name: string; filePath: string; version: string | null; signedAt: string | null; notes: string | null; createdAt: string; }
@@ -1221,7 +1221,7 @@ export default function MyProfilePage() {
                 { label: "Today's Tasks",          value: taskStats?.todayTasks         ?? "—", color: "#6366f1" },
                 { label: "Completed Today",         value: taskStats?.completedToday     ?? "—", color: "#00C4A7" },
                 { label: "In Progress",             value: taskStats?.inProgress         ?? "—", color: "#f97316" },
-                { label: "In Review",               value: taskStats?.inReview           ?? "—", color: "#8b5cf6" },
+                { label: "Assigned",                value: taskStats?.assigned           ?? "—", color: "#8b5cf6" },
                 { label: "Overdue",                 value: taskStats?.overdue            ?? "—", color: "#ef4444" },
                 { label: "Completed This Month",    value: taskStats?.completedThisMonth ?? "—", color: "#0891b2" },
               ].map(s => (

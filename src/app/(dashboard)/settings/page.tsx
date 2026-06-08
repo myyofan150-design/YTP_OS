@@ -9,7 +9,7 @@ import { SETTINGS_UPDATED_EVENT } from "@/hooks/useSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, Save } from "lucide-react";
+import { Camera, Save, Stamp } from "lucide-react";
 import type { ApiResponse } from "@/types";
 
 interface GeneralSettings {
@@ -17,6 +17,9 @@ interface GeneralSettings {
   company_tagline: string | null;
   company_email: string | null;
   company_logo_url: string | null;
+  company_phone: string | null;
+  company_address: string | null;
+  company_seal_url: string | null;
 }
 
 export default function SettingsPage() {
@@ -28,16 +31,20 @@ export default function SettingsPage() {
     if (user?.role === "EMPLOYEE") router.replace("/");
   }, [user?.role, router]);
 
-  const [settings, setSettings]   = useState<GeneralSettings>({
+  const [settings, setSettings]       = useState<GeneralSettings>({
     company_name: "", company_tagline: "", company_email: "", company_logo_url: null,
+    company_phone: "", company_address: "", company_seal_url: null,
   });
-  const [loading, setLoading]     = useState(true);
-  const [saving, setSaving]       = useState(false);
-  const [logoFile, setLogoFile]   = useState<File | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [saving, setSaving]           = useState(false);
+  const [logoFile, setLogoFile]       = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState("");
-  const [errorMsg, setErrorMsg]   = useState("");
+  const [sealFile, setSealFile]       = useState<File | null>(null);
+  const [sealPreview, setSealPreview] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg]   = useState("");
+  const [errorMsg, setErrorMsg]       = useState("");
   const logoRef = useRef<HTMLInputElement>(null);
+  const sealRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.get<ApiResponse<GeneralSettings>>("/settings/general")
@@ -51,6 +58,13 @@ export default function SettingsPage() {
     if (!file) return;
     setLogoFile(file);
     setLogoPreview(URL.createObjectURL(file));
+  }
+
+  function handleSealChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSealFile(file);
+    setSealPreview(URL.createObjectURL(file));
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -67,10 +81,20 @@ export default function SettingsPage() {
         setLogoFile(null);
         setLogoPreview(null);
       }
+      if (sealFile) {
+        const fd = new FormData();
+        fd.append("seal", sealFile);
+        const sealRes = await api.post<ApiResponse<{ sealUrl: string }>>("/settings/general/seal", fd);
+        setSettings(prev => ({ ...prev, company_seal_url: sealRes.data.data.sealUrl }));
+        setSealFile(null);
+        setSealPreview(null);
+      }
       const res = await api.patch<ApiResponse<GeneralSettings>>("/settings/general", {
         company_name:    settings.company_name    || null,
         company_tagline: settings.company_tagline || null,
         company_email:   settings.company_email   || null,
+        company_phone:   settings.company_phone   || null,
+        company_address: settings.company_address || null,
       });
       setSettings(res.data.data);
       setSuccessMsg("Settings saved successfully.");
@@ -83,6 +107,7 @@ export default function SettingsPage() {
   }
 
   const logoSrc = logoPreview ?? resolveAssetUrl(settings.company_logo_url);
+  const sealSrc = sealPreview ?? resolveAssetUrl(settings.company_seal_url);
 
   if (loading) {
     return (
@@ -101,37 +126,74 @@ export default function SettingsPage() {
 
       <form onSubmit={handleSave} className="space-y-6 rounded-2xl border border-border bg-card p-6 animate-fade-up delay-100">
 
-        {/* Logo */}
-        <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Company Logo</Label>
-          <div className="flex items-center gap-5">
-            <button
-              type="button"
-              onClick={() => isSuperAdmin && logoRef.current?.click()}
-              disabled={!isSuperAdmin}
-              className={`relative w-20 h-20 rounded-2xl border-2 border-dashed border-border bg-muted/40 flex items-center justify-center overflow-hidden group transition-all ${
-                isSuperAdmin ? "hover:border-primary/50 hover:bg-primary/5 cursor-pointer" : "cursor-default opacity-70"
-              }`}
-            >
-              {logoSrc ? (
-                <img src={logoSrc} alt="Company logo" className="w-full h-full object-contain p-1" />
-              ) : (
-                <Camera className="w-7 h-7 text-muted-foreground group-hover:text-primary transition-colors" />
-              )}
-              {isSuperAdmin && (
-                <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl">
-                  <Camera className="w-5 h-5 text-white" />
-                </span>
-              )}
-            </button>
-            <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
-            <div className="text-sm text-muted-foreground space-y-0.5">
-              <p className="font-medium text-foreground">Upload company logo</p>
-              <p className="text-xs">JPG, PNG up to 2 MB · Shown on invoices and headers</p>
-              {!isSuperAdmin && <p className="text-xs text-amber-500">Only SUPER_ADMIN can change settings</p>}
+        {/* Logo + Seal side by side */}
+        <div className="grid grid-cols-2 gap-6">
+          {/* Company Logo */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Company Logo</Label>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => isSuperAdmin && logoRef.current?.click()}
+                disabled={!isSuperAdmin}
+                className={`relative w-20 h-20 rounded-2xl border-2 border-dashed border-border bg-muted/40 flex items-center justify-center overflow-hidden group transition-all ${
+                  isSuperAdmin ? "hover:border-primary/50 hover:bg-primary/5 cursor-pointer" : "cursor-default opacity-70"
+                }`}
+              >
+                {logoSrc ? (
+                  <img src={logoSrc} alt="Company logo" className="w-full h-full object-contain p-1" />
+                ) : (
+                  <Camera className="w-7 h-7 text-muted-foreground group-hover:text-primary transition-colors" />
+                )}
+                {isSuperAdmin && (
+                  <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl">
+                    <Camera className="w-5 h-5 text-white" />
+                  </span>
+                )}
+              </button>
+              <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+              <div className="text-sm text-muted-foreground space-y-0.5">
+                <p className="font-medium text-foreground text-xs">Header logo</p>
+                <p className="text-xs">JPG, PNG · 2 MB max</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Company Seal */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Invoice Seal</Label>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => isSuperAdmin && sealRef.current?.click()}
+                disabled={!isSuperAdmin}
+                className={`relative w-20 h-20 rounded-full border-2 border-dashed border-border bg-muted/40 flex items-center justify-center overflow-hidden group transition-all ${
+                  isSuperAdmin ? "hover:border-primary/50 hover:bg-primary/5 cursor-pointer" : "cursor-default opacity-70"
+                }`}
+              >
+                {sealSrc ? (
+                  <img src={sealSrc} alt="Company seal" className="w-full h-full object-contain" />
+                ) : (
+                  <Stamp className="w-7 h-7 text-muted-foreground group-hover:text-primary transition-colors" />
+                )}
+                {isSuperAdmin && (
+                  <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
+                    <Camera className="w-5 h-5 text-white" />
+                  </span>
+                )}
+              </button>
+              <input ref={sealRef} type="file" accept="image/*" className="hidden" onChange={handleSealChange} />
+              <div className="text-sm text-muted-foreground space-y-0.5">
+                <p className="font-medium text-foreground text-xs">Stamp / seal</p>
+                <p className="text-xs">Shown on invoice T&amp;C</p>
+              </div>
             </div>
           </div>
         </div>
+
+        {!isSuperAdmin && (
+          <p className="text-xs text-amber-500">Only SUPER_ADMIN can change settings</p>
+        )}
 
         {/* Fields */}
         <div className="space-y-4">
@@ -154,7 +216,7 @@ export default function SettingsPage() {
               value={settings.company_tagline ?? ""}
               onChange={e => setSettings(prev => ({ ...prev, company_tagline: e.target.value }))}
               disabled={!isSuperAdmin}
-              placeholder="e.g. Digital Marketing Agency"
+              placeholder="e.g. A Creative Marketing Agency"
               className="h-9 text-sm"
             />
           </div>
@@ -168,6 +230,31 @@ export default function SettingsPage() {
               onChange={e => setSettings(prev => ({ ...prev, company_email: e.target.value }))}
               disabled={!isSuperAdmin}
               placeholder="contact@yourcompany.com"
+              className="h-9 text-sm"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="company_phone" className="text-sm font-medium">Company Phone</Label>
+            <Input
+              id="company_phone"
+              type="tel"
+              value={settings.company_phone ?? ""}
+              onChange={e => setSettings(prev => ({ ...prev, company_phone: e.target.value }))}
+              disabled={!isSuperAdmin}
+              placeholder="+91 98765 43210"
+              className="h-9 text-sm"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="company_address" className="text-sm font-medium">Company Address</Label>
+            <Input
+              id="company_address"
+              value={settings.company_address ?? ""}
+              onChange={e => setSettings(prev => ({ ...prev, company_address: e.target.value }))}
+              disabled={!isSuperAdmin}
+              placeholder="123 Main Street, City - 600001"
               className="h-9 text-sm"
             />
           </div>

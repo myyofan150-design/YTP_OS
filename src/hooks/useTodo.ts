@@ -7,6 +7,7 @@ import type {
   ApiResponse,
   SmartViewType,
   TodoGroup,
+  TodoGroupMember,
   TodoList,
   TodoListMember,
   TodoTask,
@@ -308,6 +309,54 @@ export function useTodoListMembers(listUuid: string | null) {
   }
 
   return { members, loading, refetch, addMembers, removeMember, syncMembers };
+}
+
+// ─── useTodoGroupMembers ──────────────────────────────────────────────────────
+
+export function useTodoGroupMembers(groupUuid: string | null) {
+  const [members,  setMembers]  = useState<TodoGroupMember[]>([]);
+  const [loading,  setLoading]  = useState(false);
+
+  const refetch = useCallback(async () => {
+    if (!groupUuid) return;
+    setLoading(true);
+    try {
+      const r = await api.get<ApiResponse<TodoGroupMember[]>>(`/todo/groups/${groupUuid}/members`);
+      setMembers(r.data.data ?? []);
+    } catch {
+      // non-fatal
+    } finally {
+      setLoading(false);
+    }
+  }, [groupUuid]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  async function addMembers(userIds: number[]): Promise<boolean> {
+    if (!groupUuid) return false;
+    try {
+      await api.post(`/todo/groups/${groupUuid}/members`, { userIds });
+      await refetch();
+      return true;
+    } catch {
+      toast.error("Failed to add members");
+      return false;
+    }
+  }
+
+  async function removeMember(userId: number): Promise<boolean> {
+    if (!groupUuid) return false;
+    try {
+      await api.delete(`/todo/groups/${groupUuid}/members/${userId}`);
+      await refetch();
+      return true;
+    } catch {
+      toast.error("Failed to remove member");
+      return false;
+    }
+  }
+
+  return { members, loading, refetch, addMembers, removeMember };
 }
 
 // ─── useSmartView ──────────────────────────────────────────────────────────────

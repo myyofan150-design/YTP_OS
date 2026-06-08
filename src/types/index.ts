@@ -300,6 +300,12 @@ export interface EmployeeDetail extends Employee {
   statusHistory?: StatusHistoryEntry[];
 }
 
+export interface TaskService {
+  id: number;
+  label: string;
+  color: string;
+}
+
 export interface Task {
   id: number;
   uuid: string;
@@ -312,13 +318,15 @@ export interface Task {
   assignedToId?: number | null;
   assignedById: number;
   parentTaskId?: number | null;
+  serviceId?: number | null;
   createdAt: string;
   updatedAt?: string;
   // populated by list/get endpoints
   assignedTo?: { id: number; name: string; avatarUrl?: string | null } | null;
   assignedBy?: { id: number; name: string } | null;
   client?:     { id: number; uuid: string; companyName: string } | null;
-  _count?:     { comments: number; attachments?: number; subTasks?: number };
+  service?:    TaskService | null;
+  _count?:     { comments: number; attachments?: number; subTasks?: number; subTasksDone?: number };
   members?:    Array<{ id: number; name: string; avatarUrl?: string | null }>;
 }
 
@@ -342,8 +350,8 @@ export interface TaskAttachment {
 
 export interface TaskDetail extends Task {
   subTasks: Array<{
-    id: number; uuid: string; title: string; status: string; priority: string;
-    assignedTo?: { id: number; name: string; avatarUrl?: string | null } | null;
+    id: number; uuid: string; title: string; status: string;
+    sortOrder?: number; completedAt?: string | null;
   }>;
   comments: TaskComment[];
   attachments: TaskAttachment[];
@@ -571,7 +579,7 @@ export interface Invoice {
   createdBy: number;
   createdAt: string;
   updatedAt?: string;
-  client?: { id: number; uuid: string; companyName: string; email?: string | null };
+  client?: { id: number; uuid: string; companyName: string; email?: string | null; contactPerson?: string | null; address?: string | null; gstNumber?: string | null };
   lineItems?: InvoiceItem[];
 }
 
@@ -709,6 +717,16 @@ export type TodoPriority  = "none" | "low" | "medium" | "high";
 export type TodoStatus    = "pending" | "completed";
 export type RepeatType    = "none" | "daily" | "weekdays" | "weekly" | "monthly" | "yearly" | "custom";
 
+export interface TodoGroupMember {
+  id: number;
+  userUuid: string;
+  name: string;
+  email: string;
+  avatarUrl?: string | null;
+  addedBy: number;
+  addedAt: string;
+}
+
 export interface TodoGroup {
   id: number;
   uuid: string;
@@ -717,7 +735,9 @@ export interface TodoGroup {
   sortOrder: number;
   createdBy: number;
   createdAt: string;
+  isOwner: boolean;
   listCount?: number;
+  memberCount?: number;
 }
 
 export interface TodoListMember {
@@ -738,6 +758,7 @@ export interface TodoList {
   color: string;
   icon?: string | null;
   isFavorite: boolean;
+  isPrivate: boolean;
   sortOrder: number;
   createdBy: number;
   createdAt: string;
@@ -745,6 +766,7 @@ export interface TodoList {
   pendingCount?: number;
   memberCount?: number;
   groupName?: string | null;
+  groupUuid?: string | null;
   members?: TodoListMember[];
 }
 

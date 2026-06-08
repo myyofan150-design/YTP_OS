@@ -27,6 +27,14 @@ import { resolveAssetUrl } from "@/lib/utils";
 interface NavItem { label: string; href: string; icon: React.ElementType; roles?: string[]; }
 interface NavSection { label: string; icon: React.ElementType; items: NavItem[]; }
 
+// Client portal nav — shown only to CLIENT role users
+const CLIENT_NAV: NavItem[] = [
+  { label: "Dashboard",  href: "/",                       icon: LayoutDashboard },
+  { label: "Tasks",      href: "/client-portal/tasks",    icon: CheckSquare     },
+  { label: "Invoices",   href: "/client-portal/invoices", icon: FileText        },
+  { label: "My Profile", href: "/client-portal/profile",  icon: UserCircle      },
+];
+
 // Top-level standalone links — always visible, no collapse
 const STANDALONE_NAV: NavItem[] = [
   { label: "Dashboard", href: "/",     icon: LayoutDashboard },
@@ -81,8 +89,11 @@ const NAV_SECTIONS: NavSection[] = [
 ];
 
 const PAGE_TITLES: Record<string, string> = {
-  "/":              "Dashboard",
-  "/chat":          "Chat",
+  "/":                         "Dashboard",
+  "/chat":                     "Chat",
+  "/client-portal/tasks":    "Tasks",
+  "/client-portal/invoices": "Invoices",
+  "/client-portal/profile":  "My Profile",
   "/leads":         "Leads",
   "/clients":       "Clients",
   "/invoices":      "Invoices",
@@ -197,7 +208,6 @@ function NotificationBell() {
             boxShadow: "var(--shadow-lg)",
           }}
         >
-          {/* Dropdown header */}
           <div
             className="flex items-center justify-between px-4 py-3"
             style={{ borderBottom: "1px solid var(--border)" }}
@@ -221,7 +231,6 @@ function NotificationBell() {
             )}
           </div>
 
-          {/* Items */}
           <div className="max-h-80 overflow-y-auto scrollbar-thin">
             {loading ? (
               <p className="py-8 text-center text-sm" style={{ color: "var(--text-secondary)" }}>Loading…</p>
@@ -260,7 +269,6 @@ function NotificationBell() {
             ))}
           </div>
 
-          {/* Footer */}
           <div className="px-4 py-2.5" style={{ borderTop: "1px solid var(--border)" }}>
             <Link
               href="/notifications"
@@ -355,13 +363,11 @@ function LockScreen({
         background: "linear-gradient(135deg, #070d16 0%, #0d1b2a 40%, #071412 100%)",
       }}
     >
-      {/* Subtle glow blobs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 left-1/3 h-[500px] w-[500px] rounded-full opacity-10" style={{ background: "radial-gradient(circle, #00C4A7 0%, transparent 70%)" }} />
         <div className="absolute -bottom-40 right-1/4 h-[400px] w-[400px] rounded-full opacity-8" style={{ background: "radial-gradient(circle, #6366f1 0%, transparent 70%)" }} />
       </div>
 
-      {/* Clock */}
       <div className="relative text-center mb-10">
         <p className="text-[88px] leading-none font-extralight tracking-tight text-white">
           {timeStr}
@@ -371,9 +377,7 @@ function LockScreen({
         </p>
       </div>
 
-      {/* Lock card */}
       <div className="relative flex flex-col items-center gap-5 w-80">
-        {/* Avatar */}
         {user?.avatarUrl ? (
           <img
             src={resolveAssetUrl(user.avatarUrl)!}
@@ -392,7 +396,6 @@ function LockScreen({
 
         <p className="text-lg font-semibold text-white">{user?.name}</p>
 
-        {/* Password form */}
         <form onSubmit={handleUnlock} className="w-full flex flex-col gap-3">
           <div className="relative">
             <input
@@ -482,7 +485,6 @@ function UserMenu({
 
   return (
     <div className="relative" ref={ref}>
-      {/* ── Trigger ── */}
       <button
         onClick={() => setOpen(v => !v)}
         className="flex items-center gap-2.5 rounded-xl px-2 py-1 transition-all duration-150"
@@ -524,7 +526,6 @@ function UserMenu({
         />
       </button>
 
-      {/* ── Dropdown ── */}
       {open && (
         <div
           className="absolute right-0 top-[calc(100%+10px)] z-50 w-56 animate-slide-up"
@@ -535,22 +536,20 @@ function UserMenu({
             boxShadow: "0 8px 30px rgba(0,0,0,0.35)",
           }}
         >
-          {/* Welcome header */}
           <div className="px-5 pt-4 pb-3" style={{ borderBottom: "1px solid var(--border)" }}>
             <p className="text-[11px] font-medium uppercase tracking-wider" style={{ color: "var(--text-secondary)", opacity: 0.7 }}>
               Welcome !
             </p>
           </div>
 
-          {/* Menu items */}
           <div className="px-2.5 pt-2 pb-1">
-            {USER_MENU_ITEMS.filter(item => !(item.action === "settings" && role === "EMPLOYEE")).map(({ label, icon: Icon, action, iconBg, iconColor }) => (
+            {USER_MENU_ITEMS.filter(item => !(item.action === "settings" && (role === "EMPLOYEE" || role === "CLIENT"))).map(({ label, icon: Icon, action, iconBg, iconColor }) => (
               <button
                 key={action}
                 onClick={() => {
                   setOpen(false);
-                  if (action === "lock")     { onLock(); }
-                  else if (action === "account")  { router.push("/profile"); }
+                  if (action === "lock")          { onLock(); }
+                  else if (action === "account")  { router.push(role === "CLIENT" ? "/client-portal/profile" : "/profile"); }
                   else if (action === "settings") { router.push("/settings"); }
                 }}
                 className="flex w-full items-center gap-3 px-2.5 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
@@ -569,7 +568,6 @@ function UserMenu({
             ))}
           </div>
 
-          {/* Logout */}
           <div className="px-2.5 pb-2.5 pt-1" style={{ borderTop: "1px solid var(--border)" }}>
             <button
               onClick={() => { setOpen(false); onLogout(); }}
@@ -610,7 +608,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { count: chatUnreadCount } = useTotalUnread();
   const settings = useSettings();
 
-  // Restore lock + sidebar state on mount
   useEffect(() => {
     if (sessionStorage.getItem("agency_locked") === "1") setIsLocked(true);
     if (localStorage.getItem("sidebar_collapsed") === "1") setSidebarCollapsed(true);
@@ -649,12 +646,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => { if (hydrated && !isAuthenticated) router.replace("/login"); }, [hydrated, isAuthenticated, router]);
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
-  // Which collapsible groups are open — auto-open the active group on mount/navigation
   const [openGroups, setOpenGroups] = useState<Set<string>>(
     () => new Set(NAV_SECTIONS.map(sec => sec.label))
   );
 
-  // Auto-open the group whenever the pathname changes (e.g. navigated from outside)
   useEffect(() => {
     setOpenGroups(prev => {
       const next = new Set(prev);
@@ -675,7 +670,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     });
   }
 
-  // Sections visible to the current user role
   const visibleSections = useMemo(() => {
     const role = user?.role ?? "";
     return NAV_SECTIONS
@@ -712,11 +706,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     .find(([k]) => pathname === k || (k !== "/" && pathname.startsWith(k)))?.[1] ?? "Agency OS";
   const initials  = (user?.name ?? "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 
-  function handleLogout()    { logout(); router.push("/login"); }
-  function handleLock()      { sessionStorage.setItem("agency_locked", "1"); setIsLocked(true); }
-  function toggleSidebar()   { setSidebarCollapsed(v => { localStorage.setItem("sidebar_collapsed", !v ? "1" : "0"); return !v; }); }
+  function handleLogout()  { logout(); router.push("/login"); }
+  function handleLock()    { sessionStorage.setItem("agency_locked", "1"); setIsLocked(true); }
+  function toggleSidebar() { setSidebarCollapsed(v => { localStorage.setItem("sidebar_collapsed", !v ? "1" : "0"); return !v; }); }
 
-  // ── Nav link component ──────────────────────────────────────────────────────
+  const isClient = user?.role === "CLIENT";
+
   function NavLink({ item, staggerIndex, collapsed = false, isSubItem = false }: { item: NavItem; staggerIndex: number; collapsed?: boolean; isSubItem?: boolean }) {
     const isActive   = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
     const badgeCount = item.href === "/subscriptions"    ? subscriptionBadge
@@ -781,7 +776,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  // ── Sidebar content builder ────────────────────────────────────────────────
   function buildSidebar(collapsed: boolean) {
     const role = user?.role ?? "";
 
@@ -814,64 +808,72 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Navigation */}
         <nav className={`flex-1 overflow-y-auto py-2 scrollbar-thin ${collapsed ? "px-1" : "px-2"}`}>
 
-          {/* ── Standalone items (Dashboard, Chat) ── */}
-          <ul className="space-y-0.5 mb-2">
-            {STANDALONE_NAV
-              .filter(item => !item.roles || item.roles.includes(role))
-              .map((item, i) => (
+          {/* ── CLIENT: flat list, no groups ── */}
+          {isClient ? (
+            <ul className="space-y-0.5">
+              {CLIENT_NAV.map((item, i) => (
                 <NavLink key={item.href} item={item} staggerIndex={i} collapsed={collapsed} />
-              ))
-            }
-          </ul>
+              ))}
+            </ul>
+          ) : (
+            <>
+              {/* ── Standalone items (Dashboard, Chat) ── */}
+              <ul className="space-y-0.5 mb-2">
+                {STANDALONE_NAV
+                  .filter(item => !item.roles || item.roles.includes(role))
+                  .map((item, i) => (
+                    <NavLink key={item.href} item={item} staggerIndex={i} collapsed={collapsed} />
+                  ))
+                }
+              </ul>
 
-          {/* ── Collapsible sections ── */}
-          {!collapsed && <div className="mb-1 mx-2" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }} />}
+              {!collapsed && <div className="mb-1 mx-2" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }} />}
 
-          <div className="space-y-0.5">
-            {visibleSections.map((section, sIdx) => {
-              const isOpen        = openGroups.has(section.label);
-              const isGroupActive = section.items.some(item => item.href !== "/" && pathname.startsWith(item.href));
+              <div className="space-y-0.5">
+                {visibleSections.map((section, sIdx) => {
+                  const isOpen        = openGroups.has(section.label);
+                  const isGroupActive = section.items.some(item => item.href !== "/" && pathname.startsWith(item.href));
 
-              return (
-                <div key={section.label}>
-                  {/* Group header */}
-                  <button
-                    onClick={() => collapsed ? undefined : toggleGroup(section.label)}
-                    title={collapsed ? section.label : undefined}
-                    className={`flex items-center w-full h-9 rounded-lg transition-all duration-150 ${collapsed ? "justify-center px-0" : "gap-[10px] px-2"}`}
-                    style={{
-                      opacity:    navReady ? 1 : 0,
-                      transform:  navReady ? "translateX(0)" : "translateX(20px)",
-                      transition: `opacity 0.3s ease ${(sIdx + STANDALONE_NAV.length) * 40}ms, transform 0.3s ease ${(sIdx + STANDALONE_NAV.length) * 40}ms, background 0.15s, color 0.15s`,
-                      color: isGroupActive ? "#00C4A7" : "rgba(255,255,255,0.55)",
-                    }}
-                    onMouseEnter={e => { if (!isGroupActive) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.9)"; }}
-                    onMouseLeave={e => { if (!isGroupActive) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)"; }}
-                  >
-                    <section.icon size={collapsed ? 18 : 15} className="shrink-0" style={{ color: "inherit" }} />
-                    {!collapsed && (
-                      <>
-                        <span className="flex-1 text-left text-sm font-medium" style={{ color: "inherit" }}>{section.label}</span>
-                        {isOpen
-                          ? <ChevronDown  size={13} style={{ color: "rgba(255,255,255,0.4)" }} />
-                          : <ChevronRight size={13} style={{ color: "rgba(255,255,255,0.4)" }} />
-                        }
-                      </>
-                    )}
-                  </button>
+                  return (
+                    <div key={section.label}>
+                      <button
+                        onClick={() => collapsed ? undefined : toggleGroup(section.label)}
+                        title={collapsed ? section.label : undefined}
+                        className={`flex items-center w-full h-9 rounded-lg transition-all duration-150 ${collapsed ? "justify-center px-0" : "gap-[10px] px-2"}`}
+                        style={{
+                          opacity:    navReady ? 1 : 0,
+                          transform:  navReady ? "translateX(0)" : "translateX(20px)",
+                          transition: `opacity 0.3s ease ${(sIdx + STANDALONE_NAV.length) * 40}ms, transform 0.3s ease ${(sIdx + STANDALONE_NAV.length) * 40}ms, background 0.15s, color 0.15s`,
+                          color: isGroupActive ? "#00C4A7" : "rgba(255,255,255,0.55)",
+                        }}
+                        onMouseEnter={e => { if (!isGroupActive) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.9)"; }}
+                        onMouseLeave={e => { if (!isGroupActive) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)"; }}
+                      >
+                        <section.icon size={collapsed ? 18 : 15} className="shrink-0" style={{ color: "inherit" }} />
+                        {!collapsed && (
+                          <>
+                            <span className="flex-1 text-left text-sm font-medium" style={{ color: "inherit" }}>{section.label}</span>
+                            {isOpen
+                              ? <ChevronDown  size={13} style={{ color: "rgba(255,255,255,0.4)" }} />
+                              : <ChevronRight size={13} style={{ color: "rgba(255,255,255,0.4)" }} />
+                            }
+                          </>
+                        )}
+                      </button>
 
-                  {/* Sub-items */}
-                  {!collapsed && isOpen && (
-                    <ul className="mt-0.5 mb-1 space-y-0.5 ml-[22px] pl-3" style={{ borderLeft: "1px solid rgba(255,255,255,0.1)" }}>
-                      {section.items.map((item, i) => (
-                        <NavLink key={item.href} item={item} staggerIndex={sIdx * 6 + i} collapsed={false} isSubItem />
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                      {!collapsed && isOpen && (
+                        <ul className="mt-0.5 mb-1 space-y-0.5 ml-[22px] pl-3" style={{ borderLeft: "1px solid rgba(255,255,255,0.1)" }}>
+                          {section.items.map((item, i) => (
+                            <NavLink key={item.href} item={item} staggerIndex={sIdx * 6 + i} collapsed={false} isSubItem />
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </nav>
 
         {/* ── Collapse toggle ── */}
@@ -973,7 +975,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           }}
         >
           <div className="flex items-center gap-3">
-            {/* Mobile hamburger */}
             <button
               className="flex h-[34px] w-[34px] items-center justify-center rounded-lg md:hidden transition-all duration-200"
               style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
@@ -988,7 +989,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Search */}
             <button
               title="Search"
               className="flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200"
@@ -1009,7 +1009,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     </div>
 
-    {/* Lock screen overlay */}
     {isLocked && (
       <LockScreen
         user={user}

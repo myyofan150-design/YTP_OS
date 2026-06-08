@@ -35,10 +35,11 @@ function StatCard({
 
 interface Props {
   subs: Subscription[];
+  filters?: Record<string, string>;
 }
 
-export function SubscriptionAnalytics({ subs }: Props) {
-  const { analytics, loading } = useSubscriptionAnalytics();
+export function SubscriptionAnalytics({ subs, filters = {} }: Props) {
+  const { analytics, loading } = useSubscriptionAnalytics(filters);
 
   const top5 = useMemo(
     () => [...subs].filter(s => s.price != null).sort((a, b) => (b.price ?? 0) - (a.price ?? 0)).slice(0, 5),

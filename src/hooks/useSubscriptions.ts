@@ -112,23 +112,20 @@ export function useSubscription(uuid: string | null) {
 
 // ─── useSubscriptionAnalytics ─────────────────────────────────────────────────
 
-export function useSubscriptionAnalytics() {
+export function useSubscriptionAnalytics(filters: Record<string, string> = {}) {
   const [analytics, setAnalytics] = useState<SubscriptionAnalytics | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const refetch = useCallback(async () => {
+  const filtersJson = JSON.stringify(filters);
+
+  useEffect(() => {
     setLoading(true);
-    try {
-      const res = await api.get<ApiResponse<SubscriptionAnalytics>>("/subscriptions/analytics/summary");
-      setAnalytics(res.data.data);
-    } catch {
-      // non-fatal
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    const params = JSON.parse(filtersJson) as Record<string, string>;
+    api.get<ApiResponse<SubscriptionAnalytics>>("/subscriptions/analytics/summary", { params })
+      .then(res => setAnalytics(res.data.data))
+      .catch(() => { /* non-fatal */ })
+      .finally(() => setLoading(false));
+  }, [filtersJson]);
 
-  useEffect(() => { refetch(); }, [refetch]);
-
-  return { analytics, loading, refetch };
+  return { analytics, loading };
 }

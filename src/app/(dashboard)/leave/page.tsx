@@ -304,10 +304,16 @@ function LeaveCalendar({ requests, month, year }: { requests: LeaveRequest[]; mo
   const daysInMonth = new Date(year, month, 0).getDate();
   const firstDay    = new Date(year, month - 1, 1).getDay();
 
+  // Parse "YYYY-MM-DD" as local midnight to avoid UTC-vs-local offset bugs
+  function parseLocalDate(s: string): Date {
+    const [y, m, d] = s.split("T")[0].split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+
   const dayMap: Record<number, LeaveRequest[]> = {};
   requests.forEach((req) => {
-    const from = new Date(req.fromDate);
-    const to   = new Date(req.toDate);
+    const from = parseLocalDate(req.fromDate);
+    const to   = parseLocalDate(req.toDate);
     for (let d = 1; d <= daysInMonth; d++) {
       const dd = new Date(year, month - 1, d);
       if (dd >= from && dd <= to && dd.getDay() !== 0) {
@@ -318,15 +324,21 @@ function LeaveCalendar({ requests, month, year }: { requests: LeaveRequest[]; mo
   });
 
   const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  const EMP_COLORS = ["bg-blue-500/20","bg-emerald-500/20","bg-violet-500/20","bg-orange-500/20","bg-pink-500/20","bg-amber-500/20","bg-teal-500/20"];
+  // Violet/purple reserved for Comp Off — excluded from per-employee palette
+  const EMP_COLORS = ["bg-blue-500/20","bg-emerald-500/20","bg-orange-500/20","bg-pink-500/20","bg-amber-500/20","bg-teal-500/20","bg-sky-500/20"];
   const empColorMap: Record<number, string> = {};
   let colorIdx = 0;
   requests.forEach((r) => {
-    if (!(r.employeeId in empColorMap)) {
+    if (r.leaveType !== "COMP_OFF" && !(r.employeeId in empColorMap)) {
       empColorMap[r.employeeId] = EMP_COLORS[colorIdx % EMP_COLORS.length];
       colorIdx++;
     }
   });
+
+  function getCellColor(r: LeaveRequest): string {
+    if (r.leaveType === "COMP_OFF") return "bg-purple-500/20 ring-1 ring-purple-400/40";
+    return empColorMap[r.employeeId] ?? "bg-blue-500/20";
+  }
 
   return (
     <div className="animate-fade-up rounded-2xl border border-border bg-card p-5">
@@ -344,7 +356,7 @@ function LeaveCalendar({ requests, month, year }: { requests: LeaveRequest[]; mo
             <div key={day} className={`rounded-lg border min-h-10 p-1 text-xs ${dow === 0 ? "bg-muted/30 border-border/50" : "border-border bg-card"}`}>
               <p className={`font-medium mb-0.5 ${dow === 0 ? "text-muted-foreground/40" : "text-foreground"}`}>{day}</p>
               {onLeave.slice(0,2).map((r) => (
-                <div key={r.id} className={`text-[10px] rounded px-1 py-px truncate ${empColorMap[r.employeeId] ?? "bg-blue-500/20"} text-foreground`} title={r.employee?.user.name}>
+                <div key={r.id} className={`text-[10px] rounded px-1 py-px truncate ${getCellColor(r)} text-foreground`} title={`${r.employee?.user.name ?? ""}${r.leaveType === "COMP_OFF" ? " (Comp Off)" : ""}`}>
                   {r.employee?.user.name?.split(" ")[0]}{r.isHalfDay ? " ½" : ""}
                 </div>
               ))}
@@ -352,6 +364,16 @@ function LeaveCalendar({ requests, month, year }: { requests: LeaveRequest[]; mo
             </div>
           );
         })}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-4 pt-3 border-t border-border">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded bg-blue-500/20" />
+          <span className="text-[11px] text-muted-foreground">Regular Leave</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded bg-purple-500/20 ring-1 ring-purple-400/40" />
+          <span className="text-[11px] text-muted-foreground">Comp Off</span>
+        </div>
       </div>
     </div>
   );

@@ -62,7 +62,6 @@ export default function SubscriptionsPage() {
   const [statusId,        setStatusId]        = useState("");
   const [billingCycleId,  setBillingCycleId]  = useState("");
   const [autopayFilter,   setAutopayFilter]   = useState("");
-  const [planTierFilter,  setPlanTierFilter]  = useState("");
   const [usageTypeFilter, setUsageTypeFilter] = useState("");
 
   // ── Data state ──
@@ -100,7 +99,6 @@ export default function SubscriptionsPage() {
       if (statusId)        params["statusId"]       = statusId;
       if (billingCycleId)  params["billingCycleId"] = billingCycleId;
       if (autopayFilter)   params["autopay"]        = autopayFilter;
-      if (planTierFilter)  params["planTier"]       = planTierFilter;
       if (usageTypeFilter) params["usageType"]      = usageTypeFilter;
 
       const res = await api.get<ApiResponse<{ subscriptions: Subscription[]; total: number }>>("/subscriptions", { params });
@@ -113,7 +111,7 @@ export default function SubscriptionsPage() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [debouncedSearch, categoryId, statusId, billingCycleId, autopayFilter, planTierFilter, usageTypeFilter]);
+  }, [debouncedSearch, categoryId, statusId, billingCycleId, autopayFilter, usageTypeFilter]);
 
   const isFirstRun = useRef(true);
   useEffect(() => {
@@ -121,7 +119,7 @@ export default function SubscriptionsPage() {
     if (isFirstRun.current) { isFirstRun.current = false; }
     fetchSubs(1, false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, categoryId, statusId, billingCycleId, autopayFilter, planTierFilter, usageTypeFilter]);
+  }, [debouncedSearch, categoryId, statusId, billingCycleId, autopayFilter, usageTypeFilter]);
 
   function loadMore() {
     const next = page + 1;
@@ -195,12 +193,12 @@ export default function SubscriptionsPage() {
     );
   }
 
-  const anyFilter = !!(debouncedSearch || categoryId || statusId || billingCycleId || autopayFilter || planTierFilter || usageTypeFilter);
+  const anyFilter = !!(debouncedSearch || categoryId || statusId || billingCycleId || autopayFilter || usageTypeFilter);
 
   function clearAllFilters() {
     setSearch(""); setDebouncedSearch("");
     setCategoryId(""); setStatusId(""); setBillingCycleId("");
-    setAutopayFilter(""); setPlanTierFilter(""); setUsageTypeFilter("");
+    setAutopayFilter(""); setUsageTypeFilter("");
   }
 
   return (
@@ -265,17 +263,6 @@ export default function SubscriptionsPage() {
           options={[
             { value: "true",  label: "ON" },
             { value: "false", label: "Manual" },
-          ]}
-        />
-
-        <FilterSelect
-          label="Tier" value={planTierFilter} onValueChange={setPlanTierFilter}
-          options={[
-            { value: "free",    label: "Free" },
-            { value: "basic",   label: "Basic" },
-            { value: "trial",   label: "Trial" },
-            { value: "pro",     label: "Pro" },
-            { value: "premium", label: "Premium" },
           ]}
         />
 
@@ -393,7 +380,17 @@ export default function SubscriptionsPage() {
         {/* Content - always rendered in print via CSS, toggled by state in UI */}
         <div id="analytics-content" className={analyticsOpen ? "block" : "hidden"}>
           <div className="p-5">
-            <SubscriptionAnalytics subs={allSubs} />
+            <SubscriptionAnalytics
+              subs={allSubs}
+              filters={{
+                ...(debouncedSearch  && { search: debouncedSearch }),
+                ...(categoryId       && { categoryId }),
+                ...(statusId         && { statusId }),
+                ...(billingCycleId   && { billingCycleId }),
+                ...(autopayFilter    && { autopay: autopayFilter }),
+                ...(usageTypeFilter  && { usageType: usageTypeFilter }),
+              }}
+            />
           </div>
         </div>
       </div>

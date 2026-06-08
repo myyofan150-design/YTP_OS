@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import {
   DragDropContext, Droppable, Draggable, DropResult,
@@ -15,10 +16,10 @@ import {
 } from "@/components/ui/select";
 import {
   Plus, Clock, Paperclip, MessageCircle, Search,
-  X, LayoutGrid, List, CircleDot, Zap, Eye, CheckCircle2,
+  X, LayoutGrid, List, CircleDot, Zap, Eye, CheckCircle2, Ban,
   AlarmClock, Copy, Trash2, MoreHorizontal, ChevronRight,
 } from "lucide-react";
-import type { Task, User, Client, ApiResponse } from "@/types";
+import type { Task, TaskService, User, Client, ApiResponse } from "@/types";
 
 // ── Column config ──────────────────────────────────────────────────────────────
 
@@ -66,6 +67,17 @@ const COLUMNS = [
     zoneBg:   "rgba(34,197,94,0.02)",
     overBg:   "rgba(34,197,94,0.05)",
     pillCls:  "bg-green-500/10 text-green-400 border-green-500/20",
+  },
+  {
+    id:       "CANCELLED"   as const,
+    label:    "Cancelled",
+    icon:     Ban,
+    accent:   "#ef4444",
+    glow:     "rgba(239,68,68,0.10)",
+    headerBg: "linear-gradient(135deg, rgba(239,68,68,0.10) 0%, rgba(239,68,68,0.03) 100%)",
+    zoneBg:   "rgba(239,68,68,0.02)",
+    overBg:   "rgba(239,68,68,0.05)",
+    pillCls:  "bg-red-500/10 text-red-400 border-red-500/20",
   },
 ] as const;
 
@@ -152,20 +164,23 @@ function KanbanCard({
   onRefresh: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPos,  setMenuPos]  = useState<{ top: number; right: number } | null>(null);
+  const btnRef  = useRef<HTMLButtonElement>(null);
   const pri     = PRI_CFG[task.priority] ?? PRI_CFG["MEDIUM"];
 
-  const subCount     = task._count?.subTasks   ?? 0;
-  const attachCount  = task._count?.attachments ?? 0;
-  const commentCount = task._count?.comments   ?? 0;
+  const subCount     = task._count?.subTasks    ?? 0;
+  const subDone      = task._count?.subTasksDone ?? 0;
+  const attachCount  = task._count?.attachments  ?? 0;
+  const commentCount = task._count?.comments     ?? 0;
 
-  useEffect(() => {
-    function onOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+  function openMenu(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
     }
-    if (menuOpen) document.addEventListener("mousedown", onOutside);
-    return () => document.removeEventListener("mousedown", onOutside);
-  }, [menuOpen]);
+    setMenuOpen(v => !v);
+  }
 
   async function duplicate(e: React.MouseEvent) {
     e.stopPropagation(); setMenuOpen(false);
@@ -230,17 +245,21 @@ function KanbanCard({
           <div className="flex items-center justify-between px-3.5 pt-3 pb-0">
             <PriorityBadge priority={task.priority} />
             {isAdmin && (
-              <div className="relative" ref={menuRef}>
+              <div>
                 <button
-                  onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
+                  ref={btnRef}
+                  onClick={openMenu}
                   className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted/60 hover:text-foreground transition-all"
                 >
                   <MoreHorizontal size={13} />
                 </button>
-                {menuOpen && (
+                {menuOpen && menuPos && createPortal(
                   <>
                     <div className="fixed inset-0 z-40" onClick={e => { e.stopPropagation(); setMenuOpen(false); }} />
-                    <div className="absolute right-0 top-8 z-50 min-w-[160px] bg-card rounded-xl border border-border shadow-2xl shadow-black/20 py-1.5">
+                    <div
+                      className="fixed z-50 min-w-[160px] bg-card rounded-xl border border-border shadow-2xl shadow-black/20 py-1.5"
+                      style={{ top: menuPos.top, right: menuPos.right }}
+                    >
                       <button onClick={duplicate} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-foreground/80 hover:bg-muted/60 hover:text-foreground text-left transition-colors">
                         <Copy size={12} /> Duplicate
                       </button>
@@ -253,7 +272,8 @@ function KanbanCard({
                         </>
                       )}
                     </div>
-                  </>
+                  </>,
+                  document.body
                 )}
               </div>
             )}
@@ -270,6 +290,15 @@ function KanbanCard({
                 {task.client.companyName}
               </p>
             )}
+            {task.service && (
+              <span
+                className="inline-flex items-center gap-1 mt-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold border"
+                style={{ background: `${task.service.color}18`, color: task.service.color, borderColor: `${task.service.color}35` }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: task.service.color }} />
+                {task.service.label}
+              </span>
+            )}
           </div>
 
           {/* Subtask progress */}
@@ -277,10 +306,13 @@ function KanbanCard({
             <div className="px-3.5 pb-2.5">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] text-muted-foreground/60 font-medium">Subtasks</span>
-                <span className="text-[10px] font-bold" style={{ color: pri.accent }}>{subCount}</span>
+                <span className="text-[10px] font-bold" style={{ color: pri.accent }}>{subDone}/{subCount}</span>
               </div>
               <div className="h-1 bg-muted/50 rounded-full overflow-hidden">
-                <div className="h-full w-0 rounded-full transition-all" style={{ background: pri.accent }} />
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ background: pri.accent, width: `${Math.round((subDone / subCount) * 100)}%` }}
+                />
               </div>
             </div>
           )}
@@ -352,12 +384,14 @@ export default function TasksPage() {
   const [priorityFilter,  setPriority]        = useState("ALL");
   const [assigneeFilter,  setAssignee]        = useState("ALL");
   const [clientFilter,    setClient]          = useState(() => searchParams.get("clientId") ?? "ALL");
+  const [serviceFilter,   setServiceFilter]   = useState("ALL");
   const [overdueFilter,   setOverdue]         = useState(false);
   const [addOpen,         setAddOpen]         = useState(false);
   const [addDefaultStatus, setAddDefaultStatus] = useState("TODO");
   const [detailUuid,      setDetailUuid]      = useState<string | null>(null);
   const [users,           setUsers]           = useState<User[]>([]);
   const [clients,         setClients]         = useState<Client[]>([]);
+  const [services,        setServices]        = useState<TaskService[]>([]);
   const [memberDropOpen,  setMemberDropOpen]  = useState(false);
   const memberRef = useRef<HTMLDivElement>(null);
 
@@ -368,17 +402,18 @@ export default function TasksPage() {
     setLoading(true);
     try {
       const params: Record<string, string> = {};
-      if (search)                   params["search"]       = search;
-      if (statusFilter !== "ALL")   params["status"]       = statusFilter;
-      if (priorityFilter !== "ALL") params["priority"]     = priorityFilter;
-      if (assigneeFilter !== "ALL") params["assignedToId"] = assigneeFilter;
-      if (clientFilter !== "ALL")   params["clientId"]     = clientFilter;
-      if (overdueFilter)            params["overdue"]      = "true";
+      if (search)                     params["search"]       = search;
+      if (statusFilter !== "ALL")     params["status"]       = statusFilter;
+      if (priorityFilter !== "ALL")   params["priority"]     = priorityFilter;
+      if (assigneeFilter !== "ALL")   params["assignedToId"] = assigneeFilter;
+      if (clientFilter !== "ALL")     params["clientId"]     = clientFilter;
+      if (serviceFilter !== "ALL")    params["serviceId"]    = serviceFilter;
+      if (overdueFilter)              params["overdue"]      = "true";
       const res = await api.get<ApiResponse<Task[]>>("/tasks", { params });
       setTasks(res.data.data);
     } catch { setTasks([]); }
     finally { setLoading(false); }
-  }, [search, statusFilter, priorityFilter, assigneeFilter, clientFilter, overdueFilter]);
+  }, [search, statusFilter, priorityFilter, assigneeFilter, clientFilter, serviceFilter, overdueFilter]);
 
   useEffect(() => {
     const t = setTimeout(fetchTasks, search ? 350 : 0);
@@ -388,6 +423,8 @@ export default function TasksPage() {
   useEffect(() => {
     api.get<ApiResponse<Client[]>>("/clients")
       .then(r => setClients(r.data.data)).catch(() => {});
+    api.get<{ data: { services: TaskService[] } }>("/clients/meta")
+      .then(r => setServices(r.data.data.services ?? [])).catch(() => {});
     if (isAdmin) {
       api.get<ApiResponse<User[]>>("/users", { params: { status: "ACTIVE" } })
         .then(r => setUsers(r.data.data)).catch(() => {});
@@ -421,7 +458,7 @@ export default function TasksPage() {
 
   const selectedAssignee = users.find(u => String(u.id) === assigneeFilter);
 
-  const hasFilters = !!(search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || clientFilter !== "ALL" || overdueFilter);
+  const hasFilters = !!(search || statusFilter !== "ALL" || priorityFilter !== "ALL" || assigneeFilter !== "ALL" || clientFilter !== "ALL" || serviceFilter !== "ALL" || overdueFilter);
 
   const doneCount    = tasks.filter(t => t.status === "DONE").length;
   const activeCount  = tasks.filter(t => t.status !== "DONE").length;
@@ -538,6 +575,36 @@ export default function TasksPage() {
           </Select>
         )}
 
+        {/* Service filter */}
+        {services.length > 0 && (
+          <Select value={serviceFilter} onValueChange={v => setServiceFilter(v ?? "ALL")}>
+            <SelectTrigger className="h-9 w-[180px] text-xs rounded-xl border-border/50 bg-muted/30">
+              <span className="text-muted-foreground mr-1 shrink-0">Service:</span>
+              <SelectValue>{(v: string) => {
+                if (!v || v === "ALL") return "All";
+                const svc = services.find(s => String(s.id) === v);
+                return svc ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: svc.color }} />
+                    {svc.label}
+                  </span>
+                ) : v;
+              }}</SelectValue>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="ALL" className="text-xs">All</SelectItem>
+              {services.map(s => (
+                <SelectItem key={s.id} value={String(s.id)} className="text-xs">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
+                    {s.label}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
         {/* Member filter */}
         {isAdmin && (
           <div className="relative" ref={memberRef}>
@@ -579,7 +646,7 @@ export default function TasksPage() {
         {/* Clear */}
         {hasFilters && (
           <button
-            onClick={() => { setSearch(""); setStatus("ALL"); setPriority("ALL"); setAssignee("ALL"); setClient("ALL"); setOverdue(false); }}
+            onClick={() => { setSearch(""); setStatus("ALL"); setPriority("ALL"); setAssignee("ALL"); setClient("ALL"); setServiceFilter("ALL"); setOverdue(false); }}
             className="h-9 px-3 rounded-xl border border-border/50 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all flex items-center gap-1.5"
           >
             <X size={12} /> Clear
@@ -726,7 +793,7 @@ export default function TasksPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/60" style={{ background: "rgba(255,255,255,0.02)" }}>
-                  {["Task", "Status", "Priority", "Client", "Assigned To", "Due", ""].map(h => (
+                  {["Task", "Status", "Priority", "Client", "Service", "Assigned To", "Due", ""].map(h => (
                     <th key={h} className="px-5 py-3.5 text-left text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest whitespace-nowrap">
                       {h}
                     </th>
@@ -736,7 +803,7 @@ export default function TasksPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-16 text-center">
+                    <td colSpan={8} className="px-5 py-16 text-center">
                       <div className="flex items-center justify-center gap-3 text-muted-foreground">
                         <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                         <span className="text-sm">Loading tasks…</span>
@@ -745,7 +812,7 @@ export default function TasksPage() {
                   </tr>
                 ) : tasks.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-16 text-center">
+                    <td colSpan={8} className="px-5 py-16 text-center">
                       <div className="flex flex-col items-center gap-3 text-muted-foreground">
                         <div className="w-12 h-12 rounded-2xl bg-muted/40 flex items-center justify-center">
                           <Search size={20} className="opacity-30" />
@@ -821,6 +888,21 @@ export default function TasksPage() {
                             {task.client
                               ? <span className="font-medium" style={{ color: "#6366f1" }}>{task.client.companyName}</span>
                               : "—"}
+                          </td>
+
+                          {/* Service */}
+                          <td className="px-5 py-3.5 whitespace-nowrap">
+                            {task.service
+                              ? (
+                                <span
+                                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border"
+                                  style={{ background: `${task.service.color}18`, color: task.service.color, borderColor: `${task.service.color}35` }}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: task.service.color }} />
+                                  {task.service.label}
+                                </span>
+                              )
+                              : <span className="text-muted-foreground/40 text-xs">—</span>}
                           </td>
 
                           {/* Assignees */}

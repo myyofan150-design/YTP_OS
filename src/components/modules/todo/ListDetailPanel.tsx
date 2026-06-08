@@ -7,7 +7,7 @@ import {
 import {
   MoreHorizontal, Pencil, Trash2, Plus, Check,
   Search, X, LayoutGrid, List, UserPlus, Users,
-  Flame, Zap, Trophy,
+  Flame, Zap, Trophy, Lock, Unlock,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -150,6 +150,8 @@ export function ListDetailPanel({ listUuid }: Props) {
   const isOwner = !!currentUser && !!list && list.createdBy === currentUser.id;
   const members = (list as (typeof list & { members?: Array<{ id: number; name: string; avatarUrl?: string | null }> }) | null)?.members ?? [];
 
+  const [optimisticTasks, setOptimisticTasks] = useState<import("@/types").TodoTask[] | null>(null);
+
   useEffect(() => {
     function onDown(e: MouseEvent) {
       if (memberPanelRef.current && !memberPanelRef.current.contains(e.target as Node)) {
@@ -180,7 +182,8 @@ export function ListDetailPanel({ listUuid }: Props) {
     catch { toast.error("Failed to remove member"); }
   }
 
-  const allTasks     = list?.tasks ?? [];
+  const serverTasks  = list?.tasks ?? [];
+  const allTasks     = optimisticTasks ?? serverTasks;
   const totalCount   = allTasks.length;
   const doneCount    = allTasks.filter(t => t.status === "completed").length;
   const pendingCount = totalCount - doneCount;
@@ -195,8 +198,8 @@ export function ListDetailPanel({ listUuid }: Props) {
   const filteredTasks = allTasks.filter(t => {
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
     if (priFilter && t.priority !== priFilter) return false;
-    if (statusFilter === "urgent")     return t.status === "pending" && t.priority === "high";
-    if (statusFilter === "inprogress") return t.status === "pending" && t.priority === "medium";
+    if (statusFilter === "urgent")     return t.status === "pending" && t.stage === "todo";
+    if (statusFilter === "inprogress") return t.status === "pending" && t.stage !== "todo";
     if (statusFilter === "completed")  return t.status === "completed";
     return true;
   });
@@ -237,8 +240,16 @@ export function ListDetailPanel({ listUuid }: Props) {
     const srcCol = source.droppableId as ColId;
     const dstCol = destination.droppableId as ColId;
     if (srcCol === dstCol) return;
-    const task = allTasks.find(t => t.uuid === draggableId);
+    const task = serverTasks.find(t => t.uuid === draggableId);
     if (!task) return;
+
+    // Optimistic update — card moves instantly, no snap-back
+    const newStatus = dstCol === "completed" ? "completed" : "pending";
+    const newStage  = dstCol !== "completed" ? dstCol : task.stage;
+    setOptimisticTasks(serverTasks.map(t =>
+      t.uuid === draggableId ? { ...t, status: newStatus, stage: newStage } : t
+    ));
+
     try {
       if (dstCol === "completed") {
         if (task.status !== "completed") await api.patch(`/todo/tasks/${draggableId}/status`);
@@ -246,9 +257,14 @@ export function ListDetailPanel({ listUuid }: Props) {
         await api.patch(`/todo/tasks/${draggableId}`, { stage: dstCol });
         if (task.status === "completed") await api.patch(`/todo/tasks/${draggableId}/status`);
       }
+      window.dispatchEvent(new CustomEvent("todo-task-mutated"));
       await refetch();
-    } catch { toast.error("Failed to move task"); refetch(); }
-  }, [allTasks, refetch]);
+    } catch {
+      toast.error("Failed to move task");
+    } finally {
+      setOptimisticTasks(null);
+    }
+  }, [serverTasks, refetch]);
 
   // ── Loading ────────────────────────────────────────────────────────────────
 
@@ -318,13 +334,20 @@ export function ListDetailPanel({ listUuid }: Props) {
                 style={{ borderColor: listColor }}
               />
             ) : (
-              <h1
-                onClick={() => { setNameValue(list.name); setEditingName(true); }}
-                title="Click to rename"
-                className="text-2xl font-bold text-foreground cursor-text hover:opacity-75 transition-opacity truncate tracking-tight"
-              >
-                {list.name}
-              </h1>
+              <div className="flex items-center gap-2 min-w-0">
+                <h1
+                  onClick={() => isOwner && (setNameValue(list.name), setEditingName(true))}
+                  title={isOwner ? "Click to rename" : undefined}
+                  className={`text-2xl font-bold text-foreground truncate tracking-tight ${isOwner ? "cursor-text hover:opacity-75 transition-opacity" : ""}`}
+                >
+                  {list.name}
+                </h1>
+                {list.isPrivate && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/60 border border-border/60 text-[10px] text-muted-foreground font-medium shrink-0">
+                    <Lock size={9} /> Private
+                  </span>
+                )}
+              </div>
             )}
           </div>
 
@@ -361,19 +384,41 @@ export function ListDetailPanel({ listUuid }: Props) {
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setListMenuOpen(false)} />
                   <div className="absolute right-0 top-10 z-50 min-w-[170px] bg-card rounded-2xl border border-border shadow-2xl shadow-black/20 py-2">
-                    <button
-                      onClick={() => { setListMenuOpen(false); setNameValue(list.name); setEditingName(true); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium hover:bg-muted/50 text-left text-foreground transition-colors"
-                    >
-                      <Pencil size={12} /> Rename List
-                    </button>
-                    <div className="my-1.5 mx-3 border-t border-border/60" />
-                    <button
-                      onClick={deleteList}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium hover:bg-red-500/8 text-left text-red-400 transition-colors"
-                    >
-                      <Trash2 size={12} /> Delete List
-                    </button>
+                    {isOwner && (
+                      <button
+                        onClick={() => { setListMenuOpen(false); setNameValue(list.name); setEditingName(true); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium hover:bg-muted/50 text-left text-foreground transition-colors"
+                      >
+                        <Pencil size={12} /> Rename List
+                      </button>
+                    )}
+                    {isOwner && (
+                      <button
+                        onClick={async () => {
+                          setListMenuOpen(false);
+                          try {
+                            await api.patch(`/todo/lists/${list.uuid}`, { isPrivate: !list.isPrivate });
+                            await refetch();
+                            toast.success(list.isPrivate ? "List is now visible in group" : "List is now private");
+                          } catch { toast.error("Failed to update list"); }
+                        }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium hover:bg-muted/50 text-left text-foreground transition-colors"
+                      >
+                        {list.isPrivate
+                          ? <><Unlock size={12} /> Make visible in group</>
+                          : <><Lock size={12} /> Make private</>
+                        }
+                      </button>
+                    )}
+                    {isOwner && <div className="my-1.5 mx-3 border-t border-border/60" />}
+                    {isOwner && (
+                      <button
+                        onClick={deleteList}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium hover:bg-red-500/8 text-left text-red-400 transition-colors"
+                      >
+                        <Trash2 size={12} /> Delete List
+                      </button>
+                    )}
                   </div>
                 </>
               )}

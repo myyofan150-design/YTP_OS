@@ -1,9 +1,8 @@
 "use client";
 
 // src/components/modules/users/AddUserModal.tsx
-// Modal form to create a new user. Uses base-ui Dialog (shadcn v4).
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +28,10 @@ const ROLES = [
   { value: "TEAM_LEAD",  label: "Team Lead" },
   { value: "EMPLOYEE",   label: "Employee" },
   { value: "ACCOUNTANT", label: "Accountant" },
+  { value: "CLIENT",     label: "Client" },
 ];
+
+interface ClientOption { id: number; companyName: string; }
 
 interface Props {
   open: boolean;
@@ -38,21 +40,48 @@ interface Props {
 }
 
 export function AddUserModal({ open, onClose, onCreated }: Props) {
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "EMPLOYEE" });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", password: "", role: "EMPLOYEE", clientId: "" });
+  const [error, setError]           = useState("");
+  const [loading, setLoading]       = useState(false);
+  const [clients, setClients]       = useState<ClientOption[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
 
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  // Load active clients when CLIENT role is selected
+  useEffect(() => {
+    if (form.role !== "CLIENT") return;
+    setClientsLoading(true);
+    api.get("/clients", { params: { status: "ACTIVE", limit: 200 } })
+      .then(r => {
+        const list = (r.data.data?.clients ?? r.data.data) as Array<{ id: number; companyName: string }>;
+        setClients(list.map(c => ({ id: c.id, companyName: c.companyName })));
+      })
+      .catch(() => {})
+      .finally(() => setClientsLoading(false));
+  }, [form.role]);
+
   async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
     setError("");
+
+    if (form.role === "CLIENT" && !form.clientId) {
+      setError("Please select a client company for this user.");
+      return;
+    }
+
     setLoading(true);
     try {
-      await api.post("/users", form);
-      setForm({ name: "", email: "", password: "", role: "EMPLOYEE" });
+      await api.post("/users", {
+        name:     form.name,
+        email:    form.email,
+        password: form.password,
+        role:     form.role,
+        ...(form.role === "CLIENT" && form.clientId ? { clientId: Number(form.clientId) } : {}),
+      });
+      setForm({ name: "", email: "", password: "", role: "EMPLOYEE", clientId: "" });
       onCreated();
       onClose();
     } catch (err: unknown) {
@@ -116,7 +145,7 @@ export function AddUserModal({ open, onClose, onCreated }: Props) {
 
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-slate-700">Role</Label>
-            <Select value={form.role} onValueChange={(v) => set("role", v ?? "EMPLOYEE")}>
+            <Select value={form.role} onValueChange={(v) => { set("role", v ?? "EMPLOYEE"); set("clientId", ""); }}>
               <SelectTrigger className="h-9 text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -129,6 +158,39 @@ export function AddUserModal({ open, onClose, onCreated }: Props) {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Client picker — only shown when CLIENT role is selected */}
+          {form.role === "CLIENT" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">
+                Client Company <span className="text-red-500">*</span>
+              </Label>
+              {clientsLoading ? (
+                <p className="text-xs text-muted-foreground py-2">Loading clients…</p>
+              ) : (
+                <Select value={form.clientId} onValueChange={(v) => set("clientId", v ?? "")}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Select a client…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)} className="text-sm">
+                        {c.companyName}
+                      </SelectItem>
+                    ))}
+                    {clients.length === 0 && (
+                      <SelectItem value="_none" disabled className="text-sm text-muted-foreground">
+                        No active clients found
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-xs text-muted-foreground">
+                This user will see only data for the selected client.
+              </p>
+            </div>
+          )}
 
           {error && (
             <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600 border border-red-200">

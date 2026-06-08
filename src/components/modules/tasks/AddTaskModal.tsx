@@ -17,7 +17,7 @@ import {
 import type { User, Client, ApiResponse } from "@/types";
 
 const STATUS_LABELS: Record<string, string> = {
-  TODO: "To Do", IN_PROGRESS: "In Progress", IN_REVIEW: "In Review", DONE: "Done",
+  TODO: "To Do", IN_PROGRESS: "In Progress", IN_REVIEW: "In Review", DONE: "Done", CANCELLED: "Cancelled",
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -152,7 +152,7 @@ export function AddTaskModal({ open, onClose, onCreated, defaultStatus = "TODO" 
               <Select value={form.status} onValueChange={(v) => set("status", v ?? "TODO")}>
                 <SelectTrigger className="h-9 text-sm"><SelectValue>{(v: string) => STATUS_LABELS[v] ?? v}</SelectValue></SelectTrigger>
                 <SelectContent>
-                  {["TODO","IN_PROGRESS","IN_REVIEW","DONE"].map((s) => (
+                  {["TODO","IN_PROGRESS","IN_REVIEW","DONE","CANCELLED"].map((s) => (
                     <SelectItem key={s} value={s} className="text-sm">{STATUS_LABELS[s]}</SelectItem>
                   ))}
                 </SelectContent>

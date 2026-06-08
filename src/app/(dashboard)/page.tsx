@@ -16,6 +16,7 @@ import { SubscriptionDashboardWidgets } from "@/components/modules/subscriptions
 import { EmployeeDashboardWidgets } from "@/components/modules/employees/EmployeeDashboardWidgets";
 import { Badge } from "@/components/ui/badge";
 import EmployeeSelfPortal from "@/app/(dashboard)/my-profile/page";
+import ClientPortalDashboard from "@/app/(dashboard)/client-portal/page";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ interface DashStats {
   clients:   { total: number; active: number; prospect: number };
   employees: { total: number; active: number };
   tasks:     { total: number; todo: number; inProgress: number; done: number };
-  todos:     { total: number; pending: number; completed: number };
+  todos:     { total: number; urgent: number; todo: number; inProgress: number; completed: number };
   invoices:  { thisMonthTotal: number; paid: number; pending: number; overdue: number };
   payroll:   { thisMonth: number; paid: number; draft: number };
   renewals:  { count: number; list: { id: number; uuid: string; companyName: string; contractEnd: string }[] };
@@ -180,6 +181,11 @@ export default function DashboardPage() {
   useEffect(() => { load(); }, [load]);
 
   if (!user) return null;
+
+  // CLIENT view — client portal dashboard
+  if (user.role === "CLIENT") {
+    return <ClientPortalDashboard />;
+  }
 
   // EMPLOYEE view — full self-service portal
   if (user.role === "EMPLOYEE") {
@@ -396,7 +402,9 @@ export default function DashboardPage() {
       {/* Todo & Task metrics — 2 columns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {stats?.todos && (
+        {stats?.todos && (() => {
+          const todoTotal = stats.todos.urgent + stats.todos.inProgress + stats.todos.completed;
+          return (
           <ChartCard
             delay={500}
             title="Todo Metrics"
@@ -405,10 +413,17 @@ export default function DashboardPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-amber-400" />
-                  <span className="text-sm text-muted-foreground">Pending</span>
+                  <span className="h-2 w-2 rounded-full bg-rose-400" />
+                  <span className="text-sm text-muted-foreground">Urgent</span>
                 </div>
-                <span className="text-xl font-bold text-amber-500">{stats.todos.pending}</span>
+                <span className="text-xl font-bold text-rose-500">{stats.todos.urgent}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-blue-400" />
+                  <span className="text-sm text-muted-foreground">In Progress</span>
+                </div>
+                <span className="text-xl font-bold text-blue-500">{stats.todos.inProgress}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -422,22 +437,24 @@ export default function DashboardPage() {
                   <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
                   <span className="text-sm text-muted-foreground">Total</span>
                 </div>
-                <span className="text-xl font-bold">{stats.todos.total}</span>
+                <span className="text-xl font-bold">{todoTotal}</span>
               </div>
             </div>
-            {stats.todos.total > 0 && (
+            {todoTotal > 0 && (
               <>
                 <div className="mt-4 h-2 rounded-full bg-muted overflow-hidden flex">
-                  <div className="bg-amber-400 transition-all" style={{ width: `${(stats.todos.pending / stats.todos.total) * 100}%` }} />
-                  <div className="bg-emerald-400 transition-all" style={{ width: `${(stats.todos.completed / stats.todos.total) * 100}%` }} />
+                  <div className="bg-rose-400 transition-all" style={{ width: `${(stats.todos.urgent / todoTotal) * 100}%` }} />
+                  <div className="bg-blue-400 transition-all" style={{ width: `${(stats.todos.inProgress / todoTotal) * 100}%` }} />
+                  <div className="bg-emerald-400 transition-all" style={{ width: `${(stats.todos.completed / todoTotal) * 100}%` }} />
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1.5">
-                  {Math.round((stats.todos.completed / stats.todos.total) * 100)}% completed
+                  {Math.round((stats.todos.completed / todoTotal) * 100)}% completed
                 </p>
               </>
             )}
           </ChartCard>
-        )}
+          );
+        })()}
 
         {stats && (
           <ChartCard

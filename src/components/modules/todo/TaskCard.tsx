@@ -99,11 +99,16 @@ export function TaskCard({ task, onUpdate, onOpen, isDragging, showListName }: P
     try {
       await api.patch(`/todo/tasks/${task.uuid}/status`);
       onUpdate();
+      window.dispatchEvent(new CustomEvent("todo-task-mutated"));
       if (!done) {
         showUndoToast({
           message:  "Task completed",
           duration: 8000,
-          onUndo:   async () => { await api.patch(`/todo/tasks/${task.uuid}/status`); onUpdate(); },
+          onUndo:   async () => {
+            await api.patch(`/todo/tasks/${task.uuid}/status`);
+            onUpdate();
+            window.dispatchEvent(new CustomEvent("todo-task-mutated"));
+          },
         });
       }
     } catch { toast.error("Failed to update status"); }
@@ -111,7 +116,11 @@ export function TaskCard({ task, onUpdate, onOpen, isDragging, showListName }: P
 
   async function handleFavorite(e: React.MouseEvent) {
     e.stopPropagation();
-    try { await api.patch(`/todo/tasks/${task.uuid}/favorite`); onUpdate(); }
+    try {
+      await api.patch(`/todo/tasks/${task.uuid}/favorite`);
+      onUpdate();
+      window.dispatchEvent(new CustomEvent("todo-task-mutated"));
+    }
     catch { toast.error("Failed to update favourite"); }
   }
 
@@ -135,7 +144,12 @@ export function TaskCard({ task, onUpdate, onOpen, isDragging, showListName }: P
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
     setMenuOpen(false);
-    try { await api.delete(`/todo/tasks/${task.uuid}`); toast.success("Task deleted"); onUpdate(); }
+    try {
+      await api.delete(`/todo/tasks/${task.uuid}`);
+      toast.success("Task deleted");
+      onUpdate();
+      window.dispatchEvent(new CustomEvent("todo-task-mutated"));
+    }
     catch { toast.error("Failed to delete task"); }
   }
 

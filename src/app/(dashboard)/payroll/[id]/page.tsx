@@ -172,16 +172,12 @@ export default function PayrollViewPage() {
       {/* Payslip card */}
       <div className="animate-fade-up delay-100 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
         {/* Header */}
-        <div className="p-6" style={{ background: "#0f766e" }}>
+        <div className="p-6" style={{ background: "#03c4a7" }}>
           <div className="flex justify-between items-start">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center">
               {logoSrc && (
-                <img src={logoSrc} alt={orgName} className="h-12 w-12 rounded-lg object-contain bg-white/10 p-0.5" />
+                <img src={logoSrc} alt={orgName} className="h-16 w-auto object-contain" />
               )}
-              <div>
-                <p className="text-2xl font-bold text-white">{orgName}</p>
-                {tagline && <p className="text-teal-200 text-sm">{tagline}</p>}
-              </div>
             </div>
             <div className="text-right">
               <p className="text-3xl font-bold text-white">PAYSLIP</p>
@@ -273,7 +269,7 @@ export default function PayrollViewPage() {
 
         {/* Net salary */}
         <div className="px-6 py-4">
-          <div className="flex justify-between items-center font-bold text-white rounded-lg px-4 py-3" style={{ background: "#0f766e" }}>
+          <div className="flex justify-between items-center font-bold text-white rounded-lg px-4 py-3" style={{ background: "#03c4a7" }}>
             <span className="text-base">Net Salary</span>
             <span className="text-xl">{fmtINR(netSalary)}</span>
           </div>

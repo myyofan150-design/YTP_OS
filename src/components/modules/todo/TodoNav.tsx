@@ -11,7 +11,7 @@ import {
   CalendarDays, Star, UserCheck, AlertCircle, CheckCircle2,
   ListTodo, Plus, ChevronDown, ChevronRight, FolderOpen,
   GripVertical, MoreHorizontal, Pencil, Trash2,
-  FolderInput, FolderMinus,
+  FolderInput, FolderMinus, Users, Lock, X, UserPlus,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
@@ -23,7 +23,8 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { NewListDialog }  from "./NewListDialog";
 import { NewGroupDialog } from "./NewGroupDialog";
-import type { TodoGroup, TodoList } from "@/types";
+import { useTodoGroupMembers } from "@/hooks/useTodo";
+import type { TodoGroup, TodoGroupMember, TodoList } from "@/types";
 
 // ─── Smart views ──────────────────────────────────────────────────────────────
 
@@ -60,10 +61,14 @@ export function TodoNav({ activeView, activeListUuid, onRefresh }: Props) {
   const [openGroups,   setOpenGroups]   = useState<Set<number>>(new Set());
   const [newListOpen,  setNewListOpen]  = useState(false);
   const [newGroupOpen, setNewGroupOpen] = useState(false);
+  const [smartCounts,  setSmartCounts]  = useState<Record<string, number>>({});
 
   // Rename state for group inline edit
   const [renamingUuid, setRenamingUuid] = useState<string | null>(null);
   const [renameValue,  setRenameValue]  = useState("");
+
+  // Group members management
+  const [membersGroupUuid, setMembersGroupUuid] = useState<string | null>(null);
 
   // Track which group is being dragged over (to auto-expand)
   const [dragOverGroupUuid, setDragOverGroupUuid] = useState<string | null>(null);
@@ -73,9 +78,18 @@ export function TodoNav({ activeView, activeListUuid, onRefresh }: Props) {
   const fetchData = useCallback(() => {
     api.get("/todo/groups").then(r => setGroups(r.data.data ?? [])).catch(() => {});
     api.get("/todo/lists").then(r  => setLists(r.data.data  ?? [])).catch(() => {});
+    api.get("/todo/smart-counts").then(r => setSmartCounts(r.data.data ?? {})).catch(() => {});
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    const handler = () => {
+      api.get("/todo/smart-counts").then(r => setSmartCounts(r.data.data ?? {})).catch(() => {});
+    };
+    window.addEventListener("todo-task-mutated", handler);
+    return () => window.removeEventListener("todo-task-mutated", handler);
+  }, []);
 
   // Auto-open group containing active list
   useEffect(() => {
@@ -245,7 +259,11 @@ export function TodoNav({ activeView, activeListUuid, onRefresh }: Props) {
 
   // ── Rendering helpers ──────────────────────────────────────────────────────
 
-  const ungroupedLists = lists.filter(l => (l.groupId ?? null) === null);
+  // Lists whose parent group the user can't see should fall through to the ungrouped section
+  const accessibleGroupIds = new Set(groups.map(g => g.id));
+  const ungroupedLists = lists.filter(l =>
+    (l.groupId ?? null) === null || !accessibleGroupIds.has(l.groupId!)
+  );
 
   function renderListItem(list: TodoList, drag: DraggableProvided, inGroup: boolean) {
     const active = activeListUuid === list.uuid;
@@ -288,6 +306,9 @@ export function TodoNav({ activeView, activeListUuid, onRefresh }: Props) {
               <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: list.color ?? "#6366F1" }} />
             )}
             <span className="flex-1 text-xs font-medium truncate">{list.name}</span>
+            {/*{list.isPrivate && (
+              <Lock className="w-2.5 h-2.5 shrink-0 opacity-40" title="Private list" />
+            )}*/}
             {(list.taskCount ?? 0) > 0 && (
               <span className="text-[10px] font-normal opacity-60">{list.taskCount}</span>
             )}
@@ -351,6 +372,7 @@ export function TodoNav({ activeView, activeListUuid, onRefresh }: Props) {
         </p>
         {SMART_VIEWS.map(({ view, label, Icon }) => {
           const active = activeView === view && !activeListUuid;
+          const count  = smartCounts[view] ?? 0;
           return (
             <Link
               key={view}
@@ -362,7 +384,12 @@ export function TodoNav({ activeView, activeListUuid, onRefresh }: Props) {
               }`}
             >
               <Icon className="w-3.5 h-3.5 shrink-0" />
-              {label}
+              <span className="flex-1">{label}</span>
+              {count > 0 && (
+                <span className={`text-[10px] font-normal tabular-nums ${active ? "opacity-80" : "opacity-60"}`}>
+                  {count}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -440,6 +467,9 @@ export function TodoNav({ activeView, activeListUuid, onRefresh }: Props) {
                                 <span className="flex-1 text-xs font-medium text-muted-foreground truncate">
                                   {group.name}
                                 </span>
+                                {!group.isOwner && (
+                                  <Users className="w-3 h-3 shrink-0 text-muted-foreground/50" title="Shared with you" />
+                                )}
                                 {isOpen
                                   ? <ChevronDown  className="w-3 h-3 shrink-0 text-muted-foreground" />
                                   : <ChevronRight className="w-3 h-3 shrink-0 text-muted-foreground" />
@@ -453,21 +483,38 @@ export function TodoNav({ activeView, activeListUuid, onRefresh }: Props) {
                                 <DropdownMenuTrigger className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground opacity-0 group-hover/grp:opacity-100 transition-opacity">
                                   <MoreHorizontal className="w-3 h-3" />
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-36 text-xs">
-                                  <DropdownMenuItem
-                                    onClick={() => startRename(group)}
-                                    className="gap-2 text-xs cursor-pointer"
-                                  >
-                                    <Pencil className="w-3 h-3" /> Rename
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => deleteGroup(group)}
-                                    variant="destructive"
-                                    className="gap-2 text-xs cursor-pointer"
-                                  >
-                                    <Trash2 className="w-3 h-3" /> Delete
-                                  </DropdownMenuItem>
+                                <DropdownMenuContent align="end" className="w-40 text-xs">
+                                  {group.isOwner && (
+                                    <DropdownMenuItem
+                                      onClick={() => setMembersGroupUuid(group.uuid)}
+                                      className="gap-2 text-xs cursor-pointer"
+                                    >
+                                      <Users className="w-3 h-3" /> Manage members
+                                    </DropdownMenuItem>
+                                  )}
+                                  {group.isOwner && (
+                                    <DropdownMenuItem
+                                      onClick={() => startRename(group)}
+                                      className="gap-2 text-xs cursor-pointer"
+                                    >
+                                      <Pencil className="w-3 h-3" /> Rename
+                                    </DropdownMenuItem>
+                                  )}
+                                  {group.isOwner && <DropdownMenuSeparator />}
+                                  {group.isOwner && (
+                                    <DropdownMenuItem
+                                      onClick={() => deleteGroup(group)}
+                                      variant="destructive"
+                                      className="gap-2 text-xs cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3 h-3" /> Delete
+                                    </DropdownMenuItem>
+                                  )}
+                                  {!group.isOwner && (
+                                    <DropdownMenuItem disabled className="gap-2 text-xs text-muted-foreground">
+                                      <Users className="w-3 h-3" /> Shared with you
+                                    </DropdownMenuItem>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             )}
@@ -564,6 +611,170 @@ export function TodoNav({ activeView, activeListUuid, onRefresh }: Props) {
         onClose={() => setNewGroupOpen(false)}
         onCreated={() => fetchData()}
       />
+      {membersGroupUuid && (
+        <GroupMembersDialog
+          groupUuid={membersGroupUuid}
+          onClose={() => setMembersGroupUuid(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── GroupMembersDialog ───────────────────────────────────────────────────────
+
+function GroupMembersDialog({ groupUuid, onClose }: { groupUuid: string; onClose: () => void }) {
+  const { members, loading, addMembers, removeMember } = useTodoGroupMembers(groupUuid);
+  // directory returns { id, name, email, avatarUrl } — id = users.id
+  const [employees, setEmployees] = useState<Array<{ id: number; name: string; email: string }>>([]);
+  const [search,    setSearch]    = useState("");
+  const [selected,  setSelected]  = useState<Set<number>>(new Set());
+  const [saving,    setSaving]    = useState(false);
+
+  useEffect(() => {
+    api.get("/employees/directory").then(r => setEmployees(r.data.data ?? [])).catch(() => {});
+  }, []);
+
+  useEffect(() => { setSelected(new Set()); }, [members]);
+
+  // m.id is users.id (returned by fetchGroupMembers as u.id)
+  const memberUserIds = new Set(members.map((m: TodoGroupMember) => m.id));
+  const filtered = employees.filter(e =>
+    e.name.toLowerCase().includes(search.toLowerCase()) && !memberUserIds.has(e.id)
+  );
+
+  function toggleSelect(id: number) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  async function handleAdd() {
+    if (selected.size === 0) return;
+    setSaving(true);
+    await addMembers([...selected]);
+    setSaving(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="bg-card border border-border rounded-xl shadow-xl w-[340px] flex flex-col max-h-[500px]"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border shrink-0">
+          <p className="text-sm font-semibold">Group Members</p>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {/* Current members */}
+          {!loading && members.length > 0 && (
+            <div className="px-4 pt-3 pb-2 space-y-1 border-b border-border">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                Current members
+              </p>
+              {members.map((m: TodoGroupMember) => (
+                <div key={m.id} className="flex items-center gap-2.5 text-xs py-1">
+                  <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center text-[10px] font-bold shrink-0 text-primary">
+                    {m.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{m.name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{m.email}</p>
+                  </div>
+                  <button
+                    onClick={() => removeMember(m.id)}
+                    className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add people */}
+          <div className="px-4 pt-3 pb-2 space-y-2">
+            {!loading && members.length === 0 && (
+              <p className="text-xs text-muted-foreground pb-1">No members yet.</p>
+            )}
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Share with employees (optional)
+            </p>
+            {/* Search */}
+            <div className="relative">
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+              </svg>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search employees..."
+                className="w-full h-8 text-xs rounded-md border border-border bg-transparent pl-8 pr-2.5 outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            {/* Dropdown list */}
+            <div className="rounded-md border border-border overflow-hidden">
+              {filtered.length === 0 ? (
+                <p className="text-[10px] text-muted-foreground px-3 py-3 text-center">
+                  {search ? "No results" : "All employees already added"}
+                </p>
+              ) : (
+                <div className="max-h-48 overflow-y-auto">
+                  {filtered.map(emp => {
+                    const checked = selected.has(emp.id);
+                    return (
+                      <button
+                        key={emp.id}
+                        onClick={() => toggleSelect(emp.id)}
+                        className="flex items-center gap-3 w-full text-xs px-3 py-2.5 hover:bg-muted/50 transition-colors text-left border-b border-border last:border-b-0"
+                      >
+                        {/* Checkbox */}
+                        <span className={`h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          checked ? "bg-primary border-primary" : "border-muted-foreground/40 bg-background"
+                        }`}>
+                          {checked && (
+                            <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 text-primary-foreground" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <polyline points="2,6 5,9 10,3" />
+                            </svg>
+                          )}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{emp.name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{emp.email}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 pb-4 pt-2 border-t border-border shrink-0">
+          <button
+            onClick={handleAdd}
+            disabled={selected.size === 0 || saving}
+            className="w-full h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
+          >
+            {saving
+              ? "Adding..."
+              : selected.size === 0
+                ? "Select people to add"
+                : `Add ${selected.size} ${selected.size === 1 ? "person" : "people"}`
+            }
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

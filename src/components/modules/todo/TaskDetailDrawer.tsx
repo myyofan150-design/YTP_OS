@@ -4,12 +4,13 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X, Trash2, CheckCircle2, Circle, ChevronDown,
   Plus, Paperclip, Download, Bell, BellOff, Loader2, Copy,
-  Flag, Calendar, RefreshCw,
+  Flag, Calendar, RefreshCw, Users, UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { resolveAssetUrl } from "@/lib/utils";
 import { useTodoTask, useTodoLists } from "@/hooks/useTodo";
+import { useAuth } from "@/hooks/useAuth";
 import { RichTextEditor } from "@/components/shared/RichTextEditor";
 import { DueDateChip } from "./DueDateChip";
 import type { TodoSubtask, TodoAttachment } from "@/types";
@@ -40,6 +41,7 @@ interface Props {
 export function TaskDetailDrawer({ taskUuid, onClose, onUpdate }: Props) {
   const { task, loading, refetch, updateTask, toggleStatus, deleteTask } = useTodoTask(taskUuid);
   const { lists } = useTodoLists();
+  const { user: currentUser } = useAuth();
 
   const [editTitle, setEditTitle]   = useState(false);
   const [titleVal, setTitleVal]     = useState("");
@@ -56,6 +58,12 @@ export function TaskDetailDrawer({ taskUuid, onClose, onUpdate }: Props) {
   const [uploading, setUploading]     = useState(false);
   const [duplicating, setDuplicating] = useState(false);
 
+  // Assignment (creator-only)
+  const [assignOpen,   setAssignOpen]   = useState(false);
+  const [assignSearch, setAssignSearch] = useState("");
+  const [empOptions,   setEmpOptions]   = useState<Array<{ id: number; name: string }>>([]);
+  const assignRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     if (task) { setTitleVal(task.title); setDescVal(task.description ?? ""); setNoteHtml(task.note ?? ""); }
@@ -67,11 +75,47 @@ export function TaskDetailDrawer({ taskUuid, onClose, onUpdate }: Props) {
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (assignRef.current && !assignRef.current.contains(e.target as Node)) setAssignOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
+
+  async function loadEmployees() {
+    if (empOptions.length > 0) return;
+    try {
+      const r = await api.get("/employees/directory");
+      setEmpOptions(r.data.data ?? []);
+    } catch { /* non-fatal */ }
+  }
+
+  const isCreator = !!currentUser && !!task && task.createdBy === currentUser.id;
+  const taskMembers = task?.members ?? [];
+
+  async function addAssignee(userId: number) {
+    if (!task) return;
+    const currentIds = taskMembers.map(m => m.id);
+    if (currentIds.includes(userId)) return;
+    const newIds = [...currentIds, userId];
+    await save({ memberIds: newIds });
+    refetch();
+  }
+
+  async function removeAssignee(userId: number) {
+    if (!task) return;
+    const newIds = taskMembers.map(m => m.id).filter(id => id !== userId);
+    await save({ memberIds: newIds });
+    refetch();
+  }
+
   const save = useCallback(async (data: Record<string, unknown>, field?: string) => {
     if (field) setSaving(field);
     await updateTask(data);
     onUpdate?.();
     setSaving(null);
+    window.dispatchEvent(new CustomEvent("todo-task-mutated"));
   }, [updateTask, onUpdate]);
 
   async function saveTitle() {
@@ -98,7 +142,12 @@ export function TaskDetailDrawer({ taskUuid, onClose, onUpdate }: Props) {
     }, 1500);
   }
 
-  async function handleToggle() { await toggleStatus(); refetch(); onUpdate?.(); }
+  async function handleToggle() {
+    await toggleStatus();
+    refetch();
+    onUpdate?.();
+    window.dispatchEvent(new CustomEvent("todo-task-mutated"));
+  }
 
   async function handleDuplicate() {
     if (!task?.listUuid) return;
@@ -116,7 +165,11 @@ export function TaskDetailDrawer({ taskUuid, onClose, onUpdate }: Props) {
   async function handleDelete() {
     if (!confirm("Delete this task?")) return;
     const ok = await deleteTask();
-    if (ok) { onClose(); onUpdate?.(); }
+    if (ok) {
+      onClose();
+      onUpdate?.();
+      window.dispatchEvent(new CustomEvent("todo-task-mutated"));
+    }
   }
 
   async function addSubtask() {
@@ -371,6 +424,85 @@ export function TaskDetailDrawer({ taskUuid, onClose, onUpdate }: Props) {
                   <ChevronDown size={9} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
                 </div>
 
+              </div>
+
+              {/* ── Assignees ── */}
+              <div>
+                <SectionLabel icon={<Users size={12} />}>Assignees</SectionLabel>
+                <div className="flex flex-wrap items-center gap-2">
+                  {taskMembers.length === 0 && !isCreator && (
+                    <span className="text-xs text-muted-foreground/60 italic">Unassigned</span>
+                  )}
+                  {taskMembers.map(m => (
+                    <div
+                      key={m.id}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-muted/50 border border-border/60 text-foreground"
+                    >
+                      <div className="w-4 h-4 rounded-full bg-primary/30 flex items-center justify-center text-[9px] font-bold">
+                        {m.name.charAt(0).toUpperCase()}
+                      </div>
+                      <span>{m.name}</span>
+                      {isCreator && (
+                        <button
+                          onClick={() => removeAssignee(m.id)}
+                          className="ml-0.5 text-muted-foreground hover:text-red-500 transition-colors"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  {isCreator && (
+                    <div className="relative" ref={assignRef}>
+                      <button
+                        onClick={() => { setAssignOpen(v => !v); loadEmployees(); }}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-dashed border-border hover:border-primary/50 hover:text-primary text-muted-foreground transition-all"
+                      >
+                        <UserPlus size={10} />
+                        {taskMembers.length === 0 ? "Assign" : "Add"}
+                      </button>
+                      {assignOpen && (
+                        <div className="absolute left-0 top-9 z-50 w-56 rounded-xl border border-border bg-card shadow-xl p-2 space-y-1.5">
+                          <input
+                            autoFocus
+                            value={assignSearch}
+                            onChange={e => setAssignSearch(e.target.value)}
+                            placeholder="Search..."
+                            className="w-full h-7 text-xs rounded-lg border border-border bg-transparent px-2 outline-none focus:ring-1 focus:ring-primary"
+                          />
+                          <div className="max-h-36 overflow-y-auto space-y-0.5">
+                            {empOptions
+                              .filter(e =>
+                                e.name.toLowerCase().includes(assignSearch.toLowerCase()) &&
+                                !taskMembers.find(m => m.id === e.id)
+                              )
+                              .slice(0, 10)
+                              .map(emp => (
+                                <button
+                                  key={emp.id}
+                                  onClick={() => { addAssignee(emp.id); setAssignOpen(false); setAssignSearch(""); }}
+                                  className="flex items-center gap-2 w-full text-xs px-2 py-1.5 rounded-lg hover:bg-muted/60 transition-colors text-left"
+                                >
+                                  <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-[9px] font-bold shrink-0">
+                                    {emp.name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="truncate">{emp.name}</span>
+                                </button>
+                              ))
+                            }
+                            {empOptions.filter(e =>
+                              e.name.toLowerCase().includes(assignSearch.toLowerCase()) &&
+                              !taskMembers.find(m => m.id === e.id)
+                            ).length === 0 && (
+                              <p className="text-[10px] text-muted-foreground px-2 py-1">No results</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* ── Reminder ── */}

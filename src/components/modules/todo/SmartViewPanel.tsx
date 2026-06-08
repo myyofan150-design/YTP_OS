@@ -89,11 +89,41 @@ function TodayPanel({ tasks, onUpdate, onOpen }: { tasks: TodoTask[]; onUpdate: 
 }
 
 function AssignedPanel({ tasks, onUpdate, onOpen }: { tasks: TodoTask[]; onUpdate: () => void; onOpen: (uuid: string) => void }) {
+  const pending   = tasks.filter(t => t.status !== "completed");
+  const completed = tasks.filter(t => t.status === "completed");
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      {tasks.map(t => (
-        <TaskCard key={t.uuid} task={t} onUpdate={onUpdate} onOpen={() => onOpen(t.uuid)} showListName />
-      ))}
+    <div className="space-y-6">
+      {/* Pending */}
+      {pending.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {pending.map(t => (
+            <TaskCard key={t.uuid} task={t} onUpdate={onUpdate} onOpen={() => onOpen(t.uuid)} showListName />
+          ))}
+        </div>
+      )}
+
+      {/* Completed — shown for 7 days, visually muted */}
+      {completed.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle2 size={13} className="text-emerald-500" />
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Completed ({completed.length})
+            </span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 opacity-55">
+            {completed.map(t => (
+              <TaskCard key={t.uuid} task={t} onUpdate={onUpdate} onOpen={() => onOpen(t.uuid)} showListName />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pending.length === 0 && completed.length === 0 && (
+        <p className="text-sm text-muted-foreground">No tasks assigned to you.</p>
+      )}
     </div>
   );
 }
@@ -161,7 +191,12 @@ function ImportantPanel({
   }, []);
 
   async function toggleList(uuid: string) {
-    try { await api.patch(`/todo/lists/${uuid}/favorite`); setData(null); setLoading(true); }
+    try {
+      await api.patch(`/todo/lists/${uuid}/favorite`);
+      setData(null);
+      setLoading(true);
+      window.dispatchEvent(new CustomEvent("todo-task-mutated"));
+    }
     catch { toast.error("Failed to update favourite"); }
   }
 

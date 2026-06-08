@@ -11,10 +11,11 @@ import { PriorityBadge } from "./PriorityBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropZone } from "@/components/ui/drop-zone";
+import { CheckCircle2, Circle, Plus, X } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import type { TaskDetail, User, Client, ApiResponse } from "@/types";
+import type { TaskDetail, TaskService, User, Client, ApiResponse } from "@/types";
 
 const STATUSES   = ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"];
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"];
@@ -45,6 +46,56 @@ function Avatar({ name, url, size = 7 }: { name: string; url?: string | null; si
   );
 }
 
+type SubTaskItem = { id: number; uuid: string; title: string; status: string; sortOrder?: number; completedAt?: string | null };
+
+function SubtaskRow({ sub, canDelete, onToggle, onDelete, onRename }: {
+  sub: SubTaskItem;
+  canDelete: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+  onRename: (t: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal]         = useState(sub.title);
+  const done = sub.status === "DONE";
+
+  return (
+    <div className="group flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-muted/40 transition-colors">
+      <button onClick={onToggle} className="shrink-0 text-muted-foreground hover:text-primary transition-colors">
+        {done ? <CheckCircle2 size={15} className="text-emerald-500" /> : <Circle size={15} />}
+      </button>
+      {editing ? (
+        <input
+          autoFocus
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          onBlur={() => { onRename(val); setEditing(false); }}
+          onKeyDown={e => {
+            if (e.key === "Enter")  { onRename(val); setEditing(false); }
+            if (e.key === "Escape") { setVal(sub.title); setEditing(false); }
+          }}
+          className="flex-1 bg-transparent border-b border-primary text-sm text-foreground outline-none"
+        />
+      ) : (
+        <span
+          className={`flex-1 text-sm cursor-text ${done ? "line-through text-muted-foreground" : "text-foreground"}`}
+          onClick={() => setEditing(true)}
+        >
+          {sub.title}
+        </span>
+      )}
+      {canDelete && (
+        <button
+          onClick={onDelete}
+          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-all shrink-0 p-0.5 rounded"
+        >
+          <X size={12} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 interface Props {
   uuid: string | null;
   onClose: () => void;
@@ -55,8 +106,9 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
   const { user } = useAuthStore();
   const [task, setTask]         = useState<TaskDetail | null>(null);
   const [loading, setLoading]   = useState(false);
-  const [users, setUsers]       = useState<User[]>([]);
-  const [clients, setClients]   = useState<Client[]>([]);
+  const [users, setUsers]         = useState<User[]>([]);
+  const [clients, setClients]     = useState<Client[]>([]);
+  const [allServices, setAllServices] = useState<TaskService[]>([]);
   const [comment, setComment]   = useState("");
   const [commenting, setCommenting] = useState(false);
   const [subInput, setSubInput] = useState("");
@@ -88,6 +140,7 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
     if (isAdmin) {
       api.get<ApiResponse<User[]>>("/users", { params: { status: "ACTIVE" } }).then((r) => setUsers(r.data.data)).catch(() => {});
       api.get<ApiResponse<Client[]>>("/clients", { params: { status: "ACTIVE" } }).then((r) => setClients(r.data.data)).catch(() => {});
+      api.get<{ data: { services: TaskService[] } }>("/clients/meta").then((r) => setAllServices(r.data.data.services ?? [])).catch(() => {});
     }
   }, [fetchTask, isAdmin]);
 
@@ -185,31 +238,39 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
     fetchTask();
   }
 
-  async function addSubTask(e: { preventDefault(): void }) {
-    e.preventDefault();
+  async function addSubTask() {
     if (!subInput.trim() || !task) return;
     setAddingSub(true);
     try {
-      await api.post("/tasks", {
-        title:        subInput.trim(),
-        status:       "TODO",
-        priority:     "MEDIUM",
-        assignedById: user!.id,
-        clientId:     task.clientId,
-        memberIds:    task.members?.map((m) => m.id) ?? (task.assignedToId ? [task.assignedToId] : []),
-        parentTaskId: task.id,
-      });
+      await api.post(`/tasks/${task.uuid}/subtasks`, { title: subInput.trim() });
       setSubInput("");
       fetchTask();
+      onUpdated();
     } finally {
       setAddingSub(false);
     }
   }
 
   async function toggleSubTask(subUuid: string, currentStatus: string) {
+    if (!task) return;
     const next = currentStatus === "DONE" ? "TODO" : "DONE";
-    await api.patch(`/tasks/${subUuid}/status`, { status: next });
+    await api.patch(`/tasks/${task.uuid}/subtasks/${subUuid}`, { status: next });
     fetchTask();
+    onUpdated();
+  }
+
+  async function deleteSubTask(subUuid: string) {
+    if (!task) return;
+    await api.delete(`/tasks/${task.uuid}/subtasks/${subUuid}`);
+    fetchTask();
+    onUpdated();
+  }
+
+  async function renameSubTask(subUuid: string, title: string) {
+    if (!title.trim() || !task) return;
+    await api.patch(`/tasks/${task.uuid}/subtasks/${subUuid}`, { title: title.trim() });
+    fetchTask();
+    onUpdated();
   }
 
 
@@ -363,7 +424,11 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
                   <p className="text-xs font-medium text-slate-500 mb-1">Client</p>
                   <Select
                     value={task.clientId != null ? String(task.clientId) : ""}
-                    onValueChange={(v) => patchField("clientId", v ? Number(v) : null)}
+                    onValueChange={(v) => {
+                      patchField("clientId", v ? Number(v) : null);
+                      // clear service if client changes
+                      if (task.serviceId) patchField("serviceId", null);
+                    }}
                   >
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue>{(v: string) => v ? (clients.find(c => String(c.id) === v)?.companyName ?? v) : "No client"}</SelectValue>
@@ -381,6 +446,57 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
                 <div>
                   <p className="text-xs font-medium text-slate-500 mb-1">Client</p>
                   <p className="text-sm text-slate-700">{task.client.companyName}</p>
+                </div>
+              )}
+
+              {/* Service — only shown when a client is selected */}
+              {isAdmin && (() => {
+                const selectedClient = task.clientId ? clients.find(c => c.id === task.clientId) : null;
+                const clientServiceLabels: string[] = selectedClient?.services ?? [];
+                const availableServices = clientServiceLabels.length > 0
+                  ? allServices.filter(s => clientServiceLabels.includes(s.label))
+                  : allServices;
+                return availableServices.length > 0 ? (
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 mb-1">Service</p>
+                    <Select
+                      value={task.serviceId != null ? String(task.serviceId) : ""}
+                      onValueChange={(v) => patchField("serviceId", v ? Number(v) : null)}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue>{(v: string) => {
+                          if (!v) return "No service";
+                          const svc = allServices.find(s => String(s.id) === v);
+                          return svc ? (
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: svc.color }} />
+                              {svc.label}
+                            </span>
+                          ) : v;
+                        }}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="" className="text-xs">No service</SelectItem>
+                        {availableServices.map((s) => (
+                          <SelectItem key={s.id} value={String(s.id)} className="text-xs">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
+                              {s.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null;
+              })()}
+              {!isAdmin && task.service && (
+                <div>
+                  <p className="text-xs font-medium text-slate-500 mb-1">Service</p>
+                  <span className="inline-flex items-center gap-1.5 text-sm text-slate-700">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: task.service.color }} />
+                    {task.service.label}
+                  </span>
                 </div>
               )}
             </div>
@@ -453,34 +569,47 @@ export function TaskDetailPanel({ uuid, onClose, onUpdated }: Props) {
 
             {/* Sub-tasks */}
             <div>
-              <p className="text-xs font-semibold text-slate-600 mb-2">Sub-Tasks ({task.subTasks.length})</p>
-              <div className="space-y-1.5">
-                {task.subTasks.map((sub) => (
-                  <label key={sub.id} className="flex items-center gap-2.5 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={sub.status === "DONE"}
-                      onChange={() => toggleSubTask(sub.uuid, sub.status)}
-                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 cursor-pointer"
+              <p className="text-xs font-semibold text-slate-600 mb-2">
+                {`Sub-Tasks${task.subTasks.length ? ` · ${task.subTasks.filter(s => s.status === "DONE").length}/${task.subTasks.length}` : ""}`}
+              </p>
+              {task.subTasks.length > 0 && (
+                <div className="mb-3">
+                  <div className="h-1 w-full rounded-full bg-muted/60 overflow-hidden mb-3">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-500"
+                      style={{ width: `${(task.subTasks.filter(s => s.status === "DONE").length / task.subTasks.length) * 100}%` }}
                     />
-                    <span className={`text-sm flex-1 ${sub.status === "DONE" ? "line-through text-slate-400" : "text-slate-700"}`}>
-                      {sub.title}
-                    </span>
-                    <PriorityBadge priority={sub.priority} size="xs" />
-                  </label>
-                ))}
-              </div>
-              <form onSubmit={addSubTask} className="flex gap-2 mt-2">
-                <Input
+                  </div>
+                  <div className="space-y-0.5">
+                    {task.subTasks.map(sub => (
+                      <SubtaskRow
+                        key={sub.uuid}
+                        sub={sub}
+                        canDelete={true}
+                        onToggle={() => toggleSubTask(sub.uuid, sub.status)}
+                        onDelete={() => deleteSubTask(sub.uuid)}
+                        onRename={title => renameSubTask(sub.uuid, title)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-2 mt-2">
+                <input
                   value={subInput}
-                  onChange={(e) => setSubInput(e.target.value)}
-                  placeholder="Add sub-task…"
-                  className="h-8 text-xs flex-1"
+                  onChange={e => setSubInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") addSubTask(); }}
+                  placeholder="Add a subtask…"
+                  className="flex-1 h-9 rounded-xl border border-border/70 bg-muted/40 px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all"
                 />
-                <Button type="submit" disabled={addingSub || !subInput.trim()} size="sm" className="h-8 text-xs bg-[#0F172A] hover:bg-slate-700 text-white">
-                  Add
-                </Button>
-              </form>
+                <button
+                  onClick={() => addSubTask()}
+                  disabled={addingSub || !subInput.trim()}
+                  className="h-9 w-9 inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40 hover:bg-primary/85 transition-colors shrink-0"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Attachments */}

@@ -53,7 +53,7 @@ function PayslipPreview({
   return (
     <div className="text-xs font-sans text-slate-800" style={{ lineHeight: 1.4 }}>
       {/* Header */}
-      <div className="rounded-t-lg p-4" style={{ background: "#0f766e" }}>
+      <div className="rounded-t-lg p-4" style={{ background: "#03c4a7" }}>
         <div className="flex justify-between items-start">
           <div className="flex items-center gap-2">
             {logoSrc && (
@@ -61,12 +61,12 @@ function PayslipPreview({
             )}
             <div>
               <p className="text-lg font-bold text-white">{orgName}</p>
-              {tagline && <p className="text-teal-200 text-[10px]">{tagline}</p>}
+              {tagline && <p className="text-teal-100 text-[10px]">{tagline}</p>}
             </div>
           </div>
           <div className="text-right">
             <p className="text-xl font-bold text-white">PAYSLIP</p>
-            <p className="text-teal-200 text-[10px] mt-0.5">{monthName} {record.year}</p>
+            <p className="text-teal-100 text-[10px] mt-0.5">{monthName} {record.year}</p>
           </div>
         </div>
       </div>
@@ -146,7 +146,7 @@ function PayslipPreview({
 
       {/* Net salary */}
       <div className="px-4 py-3">
-        <div className="flex justify-between items-center font-bold text-white rounded px-3 py-2" style={{ background: "#0f766e" }}>
+        <div className="flex justify-between items-center font-bold text-white rounded px-3 py-2" style={{ background: "#03c4a7" }}>
           <span>Net Salary</span>
           <span className="text-base">{fmtINR(netSalary)}</span>
         </div>
@@ -169,16 +169,17 @@ export default function EditPayrollPage() {
   const params = useParams();
   const id = String(params["id"]);
 
-  const [record, setRecord]   = useState<PayrollRecord | null>(null);
+  const [record,  setRecord]  = useState<PayrollRecord | null>(null);
   const [company, setCompany] = useState<CompanySettings>({ company_name: null, company_tagline: null, company_logo_url: null });
   const [loading, setLoading] = useState(true);
-  const [fetchErr, setFetchErr] = useState("");
+  const [error,   setError]   = useState("");
+  const [saving,  setSaving]  = useState(false);
+  const [saved,   setSaved]   = useState(false);
+  const [saveErr, setSaveErr] = useState("");
 
-  const [bonus, setBonus]               = useState("0");
-  const [otherDeduction, setOtherDed]   = useState("0");
-  const [notes, setNotes]               = useState("");
-  const [saving, setSaving]             = useState(false);
-  const [error, setError]               = useState("");
+  const [bonus,           setBonus]           = useState("0");
+  const [otherDeduction,  setOtherDeduction]  = useState("0");
+  const [notes,           setNotes]           = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -186,218 +187,123 @@ export default function EditPayrollPage() {
       api.get<{ data: CompanySettings }>("/settings/general"),
     ])
       .then(([recRes, settingsRes]) => {
-        const rec = recRes.data.data;
-        setRecord(rec);
-        setBonus(String(rec.bonus ?? 0));
-        setOtherDed(String(rec.otherDeduction ?? 0));
-        setNotes(rec.notes ?? "");
+        const r = recRes.data.data;
+        setRecord(r);
+        setBonus(String(r.bonus ?? 0));
+        setOtherDeduction(String(r.otherDeduction ?? 0));
+        setNotes(r.notes ?? "");
         setCompany(settingsRes.data.data);
       })
-      .catch(() => setFetchErr("Failed to load payroll record."))
+      .catch(() => setError("Failed to load payroll record"))
       .finally(() => setLoading(false));
   }, [id]);
 
-  async function save(andApprove: boolean) {
-    setError("");
+  async function handleSave() {
     setSaving(true);
+    setSaved(false);
+    setSaveErr("");
     try {
       await api.patch(`/payroll/${id}`, {
-        bonus:          parseFloat(bonus)         || 0,
+        bonus:          parseFloat(bonus) || 0,
         otherDeduction: parseFloat(otherDeduction) || 0,
-        notes:          notes || null,
+        notes:          notes || undefined,
       });
-      if (andApprove) {
-        await api.patch(`/payroll/${id}/approve`);
-      }
-      router.push("/payroll");
-    } catch (err: unknown) {
-      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to save");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      setSaveErr("Failed to save changes");
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-    </div>
-  );
-
-  if (fetchErr || !record) return (
-    <div className="p-6 text-center text-red-500 text-sm">{fetchErr || "Payroll record not found."}</div>
-  );
-
-  if (record.status !== "DRAFT") return (
-    <div className="p-6 max-w-lg mx-auto mt-16 text-center space-y-4">
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
-        <p className="font-semibold text-amber-800 text-lg mb-1">Cannot Edit Payroll</p>
-        <p className="text-sm text-amber-700">
-          Only <strong>DRAFT</strong> records can be adjusted. This record is <strong>{record.status}</strong>.
-        </p>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
       </div>
-      <Button variant="outline" onClick={() => router.back()}>
-        <ArrowLeft className="h-4 w-4 mr-1" />Go Back
-      </Button>
-    </div>
-  );
+    );
+  }
 
-  const monthName      = MONTHS[(record.month ?? 1) - 1];
-  const grossSalary    = Number(record.grossSalary);
-  const overtimeAmount = Number(record.overtimeAmount);
-  const lateDeduction  = Number(record.lateDeduction);
-  const bonusVal       = parseFloat(bonus) || 0;
-  const otherVal       = parseFloat(otherDeduction) || 0;
-  const netSalary      = grossSalary + overtimeAmount + bonusVal - lateDeduction - otherVal;
-  const emp            = record.employee;
+  if (error || !record) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-2">
+        <p className="text-slate-500">{error || "Payroll record not found"}</p>
+        <Button variant="ghost" onClick={() => router.back()}>Go back</Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3 animate-fade-in">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-1" />Back
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      {/* Page header */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Adjust Payroll</h1>
-          <p className="text-sm text-gray-500">
-            {emp?.user.name ?? `Employee #${record.employeeId}`} · {monthName} {record.year}
-          </p>
+          <h1 className="text-xl font-semibold text-slate-800">Edit Payroll</h1>
+          <p className="text-sm text-slate-500">{record.employee?.user.name} — {MONTHS[(record.month ?? 1) - 1]} {record.year}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-fade-up delay-100">
-        {/* ── LEFT: Form ───────────────────────────────────────── */}
-        <div className="space-y-5">
-          {/* Read-only info */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-            <h2 className="font-semibold text-gray-800">Payroll Details</h2>
-
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-xs text-slate-400 uppercase font-semibold mb-1">Employee</p>
-                <p className="font-medium text-slate-800">{emp?.user.name ?? "—"}</p>
-                <p className="text-slate-500 font-mono text-xs">{emp?.employeeCode}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 uppercase font-semibold mb-1">Period</p>
-                <p className="font-medium text-slate-800">{monthName} {record.year}</p>
-              </div>
-            </div>
-
-            <div className="border-t border-slate-100 pt-4">
-              <p className="text-xs text-slate-400 uppercase font-semibold mb-2">Attendance</p>
-              <div className="grid grid-cols-4 gap-2 text-center text-sm">
-                {[
-                  { label: "Working", value: record.workingDays },
-                  { label: "Present", value: Number(record.presentDays).toFixed(1) },
-                  { label: "Leave",   value: Number(record.leaveDays).toFixed(1) },
-                  { label: "LOP",     value: Number(record.lopDays).toFixed(1), red: Number(record.lopDays) > 0 },
-                ].map(item => (
-                  <div key={item.label} className="bg-slate-50 rounded-lg py-2">
-                    <p className={`font-bold ${(item as { red?: boolean }).red ? "text-red-500" : "text-slate-800"}`}>{item.value}</p>
-                    <p className="text-[10px] text-slate-400">{item.label}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="border-t border-slate-100 pt-4 grid grid-cols-3 gap-3 text-sm">
-              {[
-                { label: "Gross Salary",    value: fmtINR(grossSalary) },
-                { label: "Overtime Pay",    value: fmtINR(overtimeAmount) },
-                { label: "LOP Deduction",   value: `-${fmtINR(lateDeduction)}`, red: lateDeduction > 0 },
-              ].map(item => (
-                <div key={item.label} className="bg-slate-50 rounded-lg p-2">
-                  <p className={`font-semibold ${(item as { red?: boolean }).red ? "text-red-500" : "text-slate-800"}`}>{item.value}</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{item.label}</p>
-                </div>
-              ))}
-            </div>
+      {/* Two-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Form */}
+        <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4 shadow-sm">
+          <div className="space-y-1.5">
+            <Label htmlFor="bonus">Bonus (₹)</Label>
+            <Input
+              id="bonus"
+              type="number"
+              min={0}
+              value={bonus}
+              onChange={e => setBonus(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="otherDeduction">Other Deduction (₹)</Label>
+            <Input
+              id="otherDeduction"
+              type="number"
+              min={0}
+              value={otherDeduction}
+              onChange={e => setOtherDeduction(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              rows={3}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Optional note on payslip…"
+            />
           </div>
 
-          {/* Adjustable fields */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-            <h2 className="font-semibold text-gray-800">Adjustments</h2>
+          {saveErr && <p className="text-xs text-red-500">{saveErr}</p>}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Bonus (₹)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={bonus}
-                  onChange={e => setBonus(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>Other Deduction (₹)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={otherDeduction}
-                  onChange={e => setOtherDed(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label>Notes</Label>
-              <Textarea
-                placeholder="Any remarks about this payroll…"
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                rows={2}
-              />
-            </div>
-
-            {/* Net salary summary */}
-            <div className="border-t border-slate-100 pt-3 space-y-1 text-sm">
-              <div className="flex justify-between text-slate-600">
-                <span>Gross + Overtime + Bonus</span>
-                <span>{fmtINR(grossSalary + overtimeAmount + bonusVal)}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Total Deductions</span>
-                <span className="text-red-500">-{fmtINR(lateDeduction + otherVal)}</span>
-              </div>
-              <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1">
-                <span>Net Salary</span>
-                <span>{fmtINR(netSalary)}</span>
-              </div>
-            </div>
-
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>
+          <Button onClick={handleSave} disabled={saving} className="w-full">
+            {saving ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving…</>
+            ) : saved ? (
+              <><CheckCircle className="h-4 w-4 mr-2" />Saved!</>
+            ) : (
+              <><Save className="h-4 w-4 mr-2" />Save Changes</>
             )}
-
-            <div className="flex gap-2 pt-1">
-              <Button className="flex-1 bg-primary hover:bg-primary/85 text-primary-foreground" onClick={() => save(true)} disabled={saving}>
-                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                Save &amp; Approve
-              </Button>
-              <Button variant="outline" className="flex-1" onClick={() => save(false)} disabled={saving}>
-                <Save className="h-4 w-4 mr-2" />Save as Draft
-              </Button>
-            </div>
-          </div>
+          </Button>
         </div>
 
-        {/* ── RIGHT: Live preview ──────────────────────────────── */}
-        <div className="hidden xl:block">
-          <div className="sticky top-6">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Live Preview</p>
-            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-              <PayslipPreview
-                company={company}
-                record={record}
-                bonus={bonus}
-                otherDeduction={otherDeduction}
-                notes={notes}
-              />
-            </div>
-          </div>
+        {/* Live preview */}
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+          <PayslipPreview
+            company={company}
+            record={record}
+            bonus={bonus}
+            otherDeduction={otherDeduction}
+            notes={notes}
+          />
         </div>
       </div>
     </div>
